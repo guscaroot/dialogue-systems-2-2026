@@ -4,7 +4,7 @@ import { KEY } from "./credentials";
 import { DMContext, DMEvents } from "./types";
 import OpenAI from "openai";
 
-const REGION = "<YOUR_REGION>";
+const REGION = "francecentral";
 
 const openai = new OpenAI({
   baseURL: "http://localhost:11434/v1/",
@@ -55,10 +55,31 @@ function isInGrammar(utterance: string) {
   return utterance.toLowerCase() in grammar;
 }
 
+interface MyDMContext extends DMContext {
+  ollamaModels?: string[]
+}
+
+const fetchCompletions = (input: string) => {
+  const body = {
+    model: "llama3.1",
+    stream: false,
+    messages: [
+      {
+        role: "user",
+        content: input,
+      },
+    ],
+  };
+  return fetch("http://localhost:11434/api/chat", {
+    method: "POST",
+    body: JSON.stringify(body),
+  }).then((response) => response.json());
+};
+
 const dmMachine = setup({
   types: {
     /** you might need to extend these */
-    context: {} as DMContext,
+    context: {} as MyDMContext,
     events: {} as DMEvents,
   },
   actions: {
@@ -75,7 +96,26 @@ const dmMachine = setup({
         type: "LISTEN",
       }),
   },
-  actors: {},
+  actors: {
+    getModels: fromPromise<any, null>(() => 
+      fetch("http://localhost:11434/api/tags").then((response) => 
+        response.json()
+      )
+    ),
+    getCompletion: fromPromise<any, any>((input) => 
+      fetchCompletions(input.input)),
+    getCompletionOpenAI: fromPromise<any, string>(async ({input}) => {
+      return await openai.chat.completions.create({
+        messages:[
+          {
+            role: 'user',
+            content: input,
+          }
+        ],
+        model:'gpt-oss:20b',
+     })
+    })
+  },
 }).createMachine({
   context: ({ spawn }) => ({
     spstRef: spawn(speechstate, { input: settings }),
@@ -92,7 +132,7 @@ const dmMachine = setup({
       on: { CLICK: "Greeting" },
     },
     Greeting: {
-      initial: "Prompt",
+      initial: "GetGreetingOpenAI",
       on: {
         LISTEN_COMPLETE: [
           {
@@ -103,9 +143,54 @@ const dmMachine = setup({
         ],
       },
       states: {
+        GetGreeting: {
+          invoke: {
+            src: "getCompletion",
+            input: "Start the conversation using a short greeting.",
+            onDone: {
+              target: "Prompt",
+              actions: assign(({event}) => {
+                  return {
+                    nextUtterance: event.output.message.content
+                  }
+                })
+            }
+          }
+        },
+        GetGreetingOpenAI: {
+          invoke: {
+            src: "getCompletionOpenAI",
+            input: "Start the conversation using a short greeting.",
+            onDone: {
+              target: "Prompt",
+              actions: assign({ nextUtterance: ({event}) => event.output.choices[0].message.content
+              })
+            }
+          }
+        },
+        GetModels: {
+          invoke: {
+            src: "getModels",
+            input: null,
+            onDone: {
+              target: "Prompt",
+              actions: // ({event}) => console.log(event.output.models.map((x:any) => x.name))
+                assign(({event}) => {
+                  return {
+                    ollamaModels: event.output.models.map((x: any) => x.name)
+                  }
+                })
+            }
+          }
+        },
         Prompt: {
-          entry: { type: "spst.speak", params: { utterance: `Hello world!` } },
-          on: { SPEAK_COMPLETE: "Ask" },
+          entry: { 
+            type: "spst.speak",
+            params: ({context}) => ({ //utterance: `Hello! The models are ${context.ollamaModels?.join(" ")}`
+              utterance: context.nextUtterance
+            } )
+          },
+          on: { SPEAK_COMPLETE: "#DM.Done" },
         },
         NoInput: {
           entry: {
