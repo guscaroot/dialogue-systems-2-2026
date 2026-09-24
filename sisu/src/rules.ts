@@ -330,4 +330,21 @@ export const rules: Rules = {
       });
     }
   },
+
+  /** new rule for negative understanding feedback */
+  select_nounderstanding_feedback: (tis) => {
+    const latestMove = tis.latest_moves;
+    if (Array.isArray(latestMove) && latestMove.length === 0)  { 
+      const noUnderstandingFeedbackMove: Move = { type: "noUnderstandingFeedback", content: null };
+      const qud = tis.is.shared.qud[0]; console.log("!!QUD :", qud)
+      let moves: Move[] = [noUnderstandingFeedbackMove]; console.log("!!MOVES :", moves)
+      if (qud) {
+        moves.push({ type: "ask", content: qud });
+      }
+      return () => ({
+        ...tis.is,
+        next_moves: moves,
+      });
+    }
+  }
 };

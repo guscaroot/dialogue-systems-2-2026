@@ -153,8 +153,7 @@ describe("DME tests", () => {
       { speaker: "sys", message: "Which course?" },
       { speaker: "usr", message: "Dialogue Systems 2" },
       { speaker: "sys", message: "The lecture is in G212." },
-    ],
-  );
+    ]);
   });
 
   describe("system answer from database - Thursday", () => {
@@ -166,21 +165,39 @@ describe("DME tests", () => {
       { speaker: "sys", message: "Which course?" },
       { speaker: "usr", message: "Dialogue Systems 2" },
       { speaker: "sys", message: "The lecture is in J440." },
-    ],
-  );
+    ]);
   });
 
   describe("system answer from database - Tuesday", () => {
-  runTest([
-    { speaker: "sys", message: "Hello! You can ask me anything!" },
-    { speaker: "usr", message: "Where is the lecture?" },
-    { speaker: "sys", message: "Which day?" },
-    { speaker: "usr", message: "Tuesday" },
-    { speaker: "sys", message: "Which course?" },
-    { speaker: "usr", message: "Dialogue Systems 2" },
-    { speaker: "sys", message: "The lecture is in J440." },
-  ],
-);
-});
+    runTest([
+      { speaker: "sys", message: "Hello! You can ask me anything!" },
+      { speaker: "usr", message: "Where is the lecture?" },
+      { speaker: "sys", message: "Which day?" },
+      { speaker: "usr", message: "Tuesday" },
+      { speaker: "sys", message: "Which course?" },
+      { speaker: "usr", message: "Dialogue Systems 2" },
+      { speaker: "sys", message: "The lecture is in J440." },
+    ]);
+  });
 
+  describe("negative semantic understanding feedback", () => {
+    runTest([
+      { speaker: "sys", message: "Hello! You can ask me anything!" },
+      { speaker: "usr", message: "bla bla" },
+      { speaker: "sys", message: "Sorry, I didn't understand." },
+    ]);
+  });
+
+  describe("negative semantic understanding feedback + repeated question", () => {
+    runTest([
+      { speaker: "sys", message: "Hello! You can ask me anything!" },
+      { speaker: "usr", message: "bla bla" },
+      { speaker: "sys", message: "Sorry, I didn't understand." },
+      { speaker: "usr", message: "Where is the lecture?" },
+      { speaker: "sys", message: "Which day?" },
+      { speaker: "usr", message: "bla bla" },
+      { speaker: "sys", message: "Sorry, I didn't understand. Which day?" },
+    ]);
+  });
+  
 });

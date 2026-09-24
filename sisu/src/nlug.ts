@@ -6,7 +6,7 @@ interface NLUMapping {
 }
 type NLGMapping = [Move, string][];
 
-const nluMapping: NLUMapping = {
+const nluMapping: NLUMapping = { // use only lower case here
   "where is the lecture?": [
     {
       type: "ask",
@@ -16,7 +16,7 @@ const nluMapping: NLUMapping = {
   "what's your favorite food?": [
     {
       type: "ask",
-      content: WHQ("favorite_food"),
+      content: WHQ("favorite_food"), // ?x.favorite_food(x)
     },
   ],
   pizza: [
@@ -81,6 +81,13 @@ const nlgMapping: NLGMapping = [
     },
     "The lecture is in J440.",
   ],
+  [
+    {
+      type: "noUnderstandingFeedback",
+      content: null,
+    },
+    "Sorry, I didn't understand.",
+  ],
 ];
 
 export function nlg(moves: Move[]): string {
@@ -100,5 +107,5 @@ export function nlg(moves: Move[]): string {
 /** NLU mapping function can be replaced by statistical NLU
  */
 export function nlu(utterance: string): Move[] {
-  return nluMapping[utterance.toLowerCase()] || [];
+  return nluMapping[utterance.toLowerCase()] || []; // here is returned the empty array in case not understanding
 }
