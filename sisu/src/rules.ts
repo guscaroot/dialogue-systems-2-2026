@@ -346,5 +346,24 @@ export const rules: Rules = {
         next_moves: moves,
       });
     }
+  },
+
+  /** new rule for negative contact feedback */
+  select_noinput_feedback: (tis) => {
+    const latestMove = tis.latest_moves?.[0];
+    if (latestMove?.type === "noInput")  { 
+      const noInputFeedbackMove: Move = { type: "noInputFeedback", content: null };
+      const qud = tis.is.shared.qud[0]; console.log("!!QUD :", qud)
+      let moves: Move[] = [noInputFeedbackMove]; console.log("!!MOVES :", moves)
+      if (qud) {
+        moves.push({ type: "ask", content: qud });
+      }
+      return () => ({
+        ...tis.is,
+        next_moves: moves,
+      });
+    }
   }
+
+
 };

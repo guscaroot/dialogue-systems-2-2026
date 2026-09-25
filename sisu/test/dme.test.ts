@@ -200,4 +200,25 @@ describe("DME tests", () => {
     ]);
   });
   
+  describe("negative contact feedback", () => {
+    runTest([
+      { speaker: "sys", message: "Hello! You can ask me anything!" },
+      { speaker: "usr", message: "*noinput*" },
+      { speaker: "sys", message: "Sorry, I didn't hear you." },
+    ]);
+  });
+
+  describe("negative contact feedback + repeated question", () => {
+    runTest([
+      { speaker: "sys", message: "Hello! You can ask me anything!" },
+      { speaker: "usr", message: "*noinput*" },
+      { speaker: "sys", message: "Sorry, I didn't hear you." },
+      { speaker: "usr", message: "Where is the lecture?" },
+      { speaker: "sys", message: "Which day?" },
+      { speaker: "usr", message: "*noinput*" },
+      { speaker: "sys", message: "Sorry, I didn't hear you. Which day?" },
+    ]);
+  });
+
+  
 });

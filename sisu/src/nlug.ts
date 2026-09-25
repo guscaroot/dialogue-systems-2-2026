@@ -55,6 +55,12 @@ const nluMapping: NLUMapping = { // use only lower case here
       content: "tuesday",
     },
   ],
+  "*noinput*": [
+    {
+      type: "noInput",
+      content: null,
+    },
+  ],
 };
 const nlgMapping: NLGMapping = [
   [{ type: "ask", content: WHQ("booking_course") }, "Which course?"],
@@ -87,6 +93,13 @@ const nlgMapping: NLGMapping = [
       content: null,
     },
     "Sorry, I didn't understand.",
+  ],
+  [
+    {
+      type: "noInputFeedback",
+      content: null,
+    },
+    "Sorry, I didn't hear you.",
   ],
 ];
 
