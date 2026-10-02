@@ -104,6 +104,131 @@ async function fhAttendUser() {
   });
 }
 
+// built-in BigSmile gesture implemented for testing (source code: https://docs.furhat.io/remote-api/#furhatgestures)
+async function fhBigSmile() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "BigSmile",
+      frames:[
+    {
+      "time":[0.32,0.64],
+      "persist":false, 
+      "params":{
+        "BROW_UP_LEFT":1,
+        "BROW_UP_RIGHT":1,
+        "SMILE_OPEN":0.4,
+        "SMILE_CLOSED":0.7
+        }
+    },
+    {
+      "time":[0.96],
+      "persist":false, 
+      "params":{
+        "reset":true
+        }
+    }],
+  class:"furhatos.gestures.Gesture"
+    }),
+  });
+}
+
+async function fhRollingEyes() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "RollingEyes",
+      "frames":[
+        {
+      "time":[0.2,2],
+      "persist":false, 
+      "params":{
+        "BROW_UP_LEFT":0.8,
+        "BROW_UP_RIGHT":0.8,
+        "SMILE_OPEN":1,
+        }
+    },
+    {
+      "time":[0.2,0.4],
+      "persist":false, 
+      "params":{
+        "LOOK_LEFT":0.8,
+        }
+    },
+    {
+      "time":[0.4,0.6],
+      "persist":false, 
+      "params":{
+        "LOOK_UP_LEFT":0.8,
+        }
+    },
+    {
+      "time":[0.6,0.8],
+      "persist":false, 
+      "params":{
+        "LOOK_UP":0.8,
+        }
+    },
+    {
+      "time":[0.8,1],
+      "persist":false, 
+      "params":{
+        "LOOK_UP_RIGHT":0.8,
+        }
+    },
+    {
+      "time":[1,1.2],
+      "persist":false, 
+      "params":{
+        "LOOK_RIGHT":0.8,
+        }
+    },
+    {
+      "time":[1.2,1.4],
+      "persist":false, 
+      "params":{
+        "LOOK_DOWN_RIGHT":0.8,
+        }
+    },
+    {
+      "time":[1.4,1.6],
+      "persist":false, 
+      "params":{
+        "LOOK_DOWN":0.8,
+        }
+    },
+    {
+      "time":[1.6,1.8],
+      "persist":false, 
+      "params":{
+        "LOOK_DOWN_LEFT":0.8,
+        }
+    },
+    {
+      "time":[1.8,2],
+      "persist":false, 
+      "params":{
+        "LOOK_LEFT":0.8,
+        }
+    },
+    {
+      "time":[2],
+      "persist":false, 
+      "params":{
+        "reset":true
+        }
+    }],
+  "class":"furhatos.gestures.Gesture"
+    }),
+  });
+}
+
 const dmMachine = setup({
   types: {
     context: {} as DMContext,
@@ -117,17 +242,23 @@ const dmMachine = setup({
     }),
     fhL: fromPromise<any, null>(async () => {
      return fhListen();
-   }),
-   fhGetUser: fromPromise<any, null>(async () => {
-     return fhGetUser();
-   }),
-   fhAttendUser: fromPromise<any, null>(async () => {
-     return fhAttendUser();
-   }),
-   fhS: fromPromise<any, string>(async ({input}) => {
-      return fhSay(input);
     }),
-  },
+    fhGetUser: fromPromise<any, null>(async () => {
+      return fhGetUser();
+    }),
+    fhAttendUser: fromPromise<any, null>(async () => {
+      return fhAttendUser();
+    }),
+    fhS: fromPromise<any, string>(async ({input}) => {
+        return fhSay(input);
+      }),
+    fhBigSmile: fromPromise<any, null>(async () => {
+      return fhBigSmile();
+    }),
+    fhRollingEyes: fromPromise<any, null>(async () => {
+      return fhRollingEyes();
+    }),
+  }
 }).createMachine({
   context: { 
     lastUtterance: undefined
@@ -198,6 +329,35 @@ const dmMachine = setup({
       invoke: {
         src: "fhS",      
         input: ({context}) => context.lastUtterance as string,
+        onDone: {
+          target: "RollingEyes",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    BigSmile: {
+      invoke: {
+        src: "fhBigSmile",      
+        input: null,
+        onDone: {
+          target: "BigSmileDelay",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    BigSmileDelay: { after: { 1000: "RollingEyes"} },
+    RollingEyes: {
+      invoke: {
+        src: "fhRollingEyes",      
+        input: null,
         onDone: {
           target: "Done",
           actions: ({ event }) => console.log(event.output),
