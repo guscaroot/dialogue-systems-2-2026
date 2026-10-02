@@ -2,6 +2,10 @@ import { setup, createActor, fromPromise, assign } from "xstate";
 
 const FURHATURI = "127.0.0.1:54321";
 
+type DMContext = {
+  lastUtterance: string | undefined,
+}
+
 async function fhVoice(name: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -101,12 +105,15 @@ async function fhAttendUser() {
 }
 
 const dmMachine = setup({
+  types: {
+    context: {} as DMContext,
+    },
   actors: {
     fhVoice: fromPromise<any, null>(async () => {
       return fhVoice("en-US-EchoMultilingualNeural");
     }),
     fhHello: fromPromise<any, null>(async () => {
-      return fhSay("Hi");
+      return fhSay("Hello!");
     }),
     fhL: fromPromise<any, null>(async () => {
      return fhListen();
@@ -117,8 +124,14 @@ const dmMachine = setup({
    fhAttendUser: fromPromise<any, null>(async () => {
      return fhAttendUser();
    }),
+   fhS: fromPromise<any, string>(async ({input}) => {
+      return fhSay(input);
+    }),
   },
 }).createMachine({
+  context: { 
+    lastUtterance: undefined
+  },
   id: "root",
   initial: "Start",
   states: {
@@ -156,7 +169,7 @@ const dmMachine = setup({
         src: "fhAttendUser",      
         input: null,
         onDone: {
-          target: "Done",
+          target: "Listen",
           actions: ({ event }) => console.log(event.output),
         },
         onError: {
@@ -166,6 +179,34 @@ const dmMachine = setup({
       },
     },
     Listen: {
+      invoke: {
+        src: "fhL",      
+        input: null,
+        onDone: {
+          target: "Speak",
+          actions: [
+            ({ event }) => console.log(event.output), 
+            assign({lastUtterance: ({ event}) =>  event.output})]
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    Speak: {
+      invoke: {
+        src: "fhS",      
+        input: ({context}) => context.lastUtterance as string,
+        onDone: {
+          target: "Done",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
     },
     Fail: {},
     Done: {},
