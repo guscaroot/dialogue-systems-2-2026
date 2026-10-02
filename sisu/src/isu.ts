@@ -7,7 +7,7 @@ import { nlg, nlu, nluQdrant } from "./nlug";
 import { dme } from "./dme";
 import { initialIS } from "./is";
 
-const inspector = createBrowserInspector();
+const {inspect} = createBrowserInspector();
 
 const azureCredentials = {
   endpoint:
@@ -190,7 +190,7 @@ const dmMachine = setup({
 });
 
 export const dmActor = createActor(dmMachine, {
-  inspect: inspector.inspect,
+  inspect,
 }).start();
 
 let is = dmActor.getSnapshot().context.is;
