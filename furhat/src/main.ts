@@ -229,6 +229,17 @@ async function fhRollingEyes() {
   });
 }
 
+async function fhSound(url: string) {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  const encText = encodeURIComponent(url);
+  return fetch(`http://${FURHATURI}/furhat/say?url=${encText}&blocking=true`, {
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  });
+}
+
 const dmMachine = setup({
   types: {
     context: {} as DMContext,
@@ -258,6 +269,12 @@ const dmMachine = setup({
     fhRollingEyes: fromPromise<any, null>(async () => {
       return fhRollingEyes();
     }),
+    // original audio file source: https://pixabay.com/sound-effects/people-grrr-137901/
+    fhAngerWithSound: fromPromise<any, null>(async () => {
+     return Promise.all ([
+     fhSound('https://raw.githubusercontent.com/guscaroot/dialogue-systems-2-2026/lab3/furhat/src/grrr-137901.wav'),
+     fhGesture("ExpressAnger")])
+   }),
   }
 }).createMachine({
   context: { 
@@ -357,6 +374,21 @@ const dmMachine = setup({
     RollingEyes: {
       invoke: {
         src: "fhRollingEyes",      
+        input: null,
+        onDone: {
+          target: "RollingEyesDelay",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    RollingEyesDelay: { after: { 2000: "Anger"} },
+    Anger: {
+      invoke: {
+        src: "fhAngerWithSound",      
         input: null,
         onDone: {
           target: "Done",
