@@ -18,6 +18,12 @@ interface NLUMapping {
 type NLGMapping = [Move, string][];
 
 const nluMapping: NLUMapping = { // use only lower case here
+  "what is this bird?": [
+    {
+      type: "ask",
+      content: WHQ("observed_bird"),
+    },
+  ],
   "where is the lecture?": [
     {
       type: "ask",
@@ -72,6 +78,18 @@ const nluMapping: NLUMapping = { // use only lower case here
       content: null,
     },
   ],
+  "sweden": [
+    {
+      type: "answer",
+      content: "sweden",
+    },
+  ],
+  "i see a small bird with a blue crown": [
+    {
+      type: "answer",
+      content: "blue crown",
+    },
+  ],
 };
 const nlgMapping: NLGMapping = [
   [{ type: "ask", content: WHQ("booking_course") }, "Which course?"],
@@ -112,6 +130,9 @@ const nlgMapping: NLGMapping = [
     },
     "Sorry, I didn't hear you.",
   ],
+  [{ type: "ask", content: WHQ("location") }, "Where are you?"],
+  [{ type: "ask", content: WHQ("description") }, "What do you see?"],
+  [{ type: "answer", content: {predicate: "observed_bird", argument: "eurasian blue tit"}}, "I think it's a blue tit."],
 ];
 
 export function nlg(moves: Move[]): string {

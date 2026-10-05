@@ -142,7 +142,7 @@ describe("DME tests", () => {
       { speaker: "sys", message: "The lecture is in G212." },
     ],
   );
-  });*/
+  });
 
   describe("system answer from database - Friday", () => {
     runTest([
@@ -238,7 +238,18 @@ describe("DME tests", () => {
       { speaker: "usr", message: "Dialogue Systems 2" },
       { speaker: "sys", message: "The lecture is in J440." },
     ]);
-  });
+  }); */
 
+  describe("bird observation", () => {
+    runTest([
+      { speaker: "sys", message: "Hello! You can ask me anything!" },
+      { speaker: "usr", message: "What is this bird?" },
+      { speaker: "sys", message: "Where are you?" },
+      { speaker: "usr", message: "Sweden" },
+      { speaker: "sys", message: "What do you see?" },
+      { speaker: "usr", message: "I see a small bird with a blue crown" },
+      { speaker: "sys", message: "I think it's a blue tit." },
+    ]);
+  });
   
 });
