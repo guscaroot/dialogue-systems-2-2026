@@ -240,6 +240,17 @@ async function fhSound(url: string) {
   });
 }
 
+async function fhRedLight(red: number) {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  const encText = encodeURIComponent(red);
+  return fetch(`http://${FURHATURI}/furhat/led?red=${encText}`, {
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  });
+}
+
 const dmMachine = setup({
   types: {
     context: {} as DMContext,
@@ -252,7 +263,11 @@ const dmMachine = setup({
       return fhSay("Hello!");
     }),
     fhL: fromPromise<any, null>(async () => {
-     return fhListen();
+      await fhRedLight(0);
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const utterance = await fhListen();
+      await fhRedLight(255);
+      return utterance
     }),
     fhGetUser: fromPromise<any, null>(async () => {
       return fhGetUser();
@@ -261,7 +276,7 @@ const dmMachine = setup({
       return fhAttendUser();
     }),
     fhS: fromPromise<any, string>(async ({input}) => {
-        return fhSay(input);
+      return fhSay(input);
       }),
     fhBigSmile: fromPromise<any, null>(async () => {
       return fhBigSmile();
@@ -271,10 +286,13 @@ const dmMachine = setup({
     }),
     // original audio file source: https://pixabay.com/sound-effects/people-grrr-137901/
     fhAngerWithSound: fromPromise<any, null>(async () => {
-     return Promise.all ([
-     fhSound('https://raw.githubusercontent.com/guscaroot/dialogue-systems-2-2026/lab3/furhat/src/grrr-137901.wav'),
-     fhGesture("ExpressAnger")])
+      return Promise.all ([
+      fhSound('https://raw.githubusercontent.com/guscaroot/dialogue-systems-2-2026/lab3/furhat/src/grrr-137901.wav'),
+      fhGesture("ExpressAnger")])
    }),
+   fhRedLight: fromPromise<any, null>(async () => {
+      await fhRedLight(255);
+    }),
   }
 }).createMachine({
   context: { 
@@ -283,7 +301,21 @@ const dmMachine = setup({
   id: "root",
   initial: "Start",
   states: {
-    Start: { after: { 1000: "Next" } },
+    Start: { 
+      invoke: {
+        src: "fhRedLight",      
+        input: null,
+        onDone: {
+          target: "StartDelay",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    StartDelay: { after: { 1000: "Next" } },
     Next: {
       invoke: {
         src: "fhHello",      
@@ -342,6 +374,20 @@ const dmMachine = setup({
         },
       },
     },
+    RedLightOn: {
+      invoke: {
+        src: "fhRedLight",      
+        input: null,
+        onDone: {
+          target: "Speak",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
     Speak: {
       invoke: {
         src: "fhS",      
@@ -385,7 +431,7 @@ const dmMachine = setup({
         },
       },
     },
-    RollingEyesDelay: { after: { 2000: "Anger"} },
+    RollingEyesDelay: { after: { 2000: "Listen"} },
     Anger: {
       invoke: {
         src: "fhAngerWithSound",      
