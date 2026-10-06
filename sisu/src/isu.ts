@@ -3,7 +3,7 @@ import { Settings, speechstate } from "speechstate";
 import { createBrowserInspector } from "@statelyai/inspect";
 import { KEY } from "./azure";
 import { DMContext, DMEvent, NextMovesEvent, Move } from "./types";
-import { nlg, nlu, nluQdrant } from "./nlug";
+import { nlg, nlu, nluLLM,  } from "./nlug"; // nluQdrant
 import { dme } from "./dme";
 import { initialIS } from "./is";
 
@@ -28,8 +28,11 @@ const settings: Settings = {
 const dmMachine = setup({
   actors: {
     dme: dme,
-    nluQdrant: fromPromise<Move[], string>(async ({input}) => {
+    /*nluQdrant: fromPromise<Move[], string>(async ({input}) => {
       return await nluQdrant(input)
+    },),*/
+    nluLLM: fromPromise<Move[], string>(async ({input}) => {
+      return await nluLLM(input)
     },),
   },
   actions: {
@@ -103,6 +106,7 @@ const dmMachine = setup({
                     ({ event }) => console.log("[ASR] RECOGNISED", event.value[0].utterance),
                     assign(({ event }) => ({
                     lastUserUtterance: event.value[0].utterance,
+                    /*lastUserMoves: nlu(event.value[0].utterance),*/
                     })),
                   ]
                 },
@@ -118,9 +122,32 @@ const dmMachine = setup({
                 },
               },
             },
-            ProcessingNLU: {
+            /*ProcessingNLU: {
               invoke: {
                 src: "nluQdrant",
+                input: ({ context }) => context.lastUserUtterance!,
+                onDone: {
+                  target: "Idle",
+                  actions: [
+                    () => console.log("[NLU] Complete"),
+                    assign(({ event }) => ({
+                      lastUserMoves: event.output,
+                      lastUserUtterance: undefined,
+                    })),
+                    sendTo("dmeID", ({ event }) => ({
+                      type: "SAYS",
+                      value: {
+                        speaker: "usr",
+                        moves: event.output,
+                      },
+                    })),
+                  ]
+                }
+              }
+            },*/
+            ProcessingNLU: {
+              invoke: {
+                src: "nluLLM",
                 input: ({ context }) => context.lastUserUtterance!,
                 onDone: {
                   target: "Idle",

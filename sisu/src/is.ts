@@ -11,20 +11,12 @@ import { bird, birdsDB } from "./birds-database";
 export const initialIS = (): InformationState => {
   const predicates: { [index: string]: string } = {
     // Mapping from predicate to sort
-    favorite_food: "food",
-    booking_course: "course",
-    booking_day: "day",
-    location: "location",
+    user_location: "location",
     description: "description",
     observed_bird: "bird",
   };
   const individuals: { [index: string]: string } = {
     // Mapping from individual to sort
-    pizza: "food",
-    LT2319: "course",
-    friday: "day",
-    thursday: "day",
-    tuesday: "day",
     sweden: "location",
     "blue crown": "description",
     eurasianbluetit: "bird",
@@ -36,18 +28,9 @@ export const initialIS = (): InformationState => {
       plans: [
         {
           type: "issue",
-          content: WHQ("booking_room"),
-          plan: [
-            findout(WHQ("booking_day")),
-            findout(WHQ("booking_course")),
-            consultDB(WHQ("booking_room")),
-          ],
-        },
-        {
-          type: "issue",
           content: WHQ("observed_bird"),
           plan: [
-            findout(WHQ("location")),
+            findout(WHQ("user_location")),
             findout(WHQ("description")),
             consultDB(WHQ("observed_bird")),
           ],
@@ -56,19 +39,8 @@ export const initialIS = (): InformationState => {
     },
     database: {
       consultDB: (question, facts) => {
-        if (objectsEqual(question, WHQ("booking_room"))) {
-          const day = getFactArgument(facts, "booking_day");
-          const course = getFactArgument(facts, "booking_course");
-          if (day == "friday" && course == "LT2319") {
-            return { predicate: "booking_room", argument: "G212" };
-          };
-          if ((day == "thursday" || day == "tuesday") && course == "LT2319") {
-            return { predicate: "booking_room", argument: "J440" };
-          };
-        };
-        
         if (objectsEqual(question, WHQ("observed_bird"))) {
-          const location = getFactArgument(facts, "location");
+          const location = getFactArgument(facts, "user_location");
           console.log(location)
           const description = getFactArgument(facts, "description");
           console.log(description)
