@@ -2,8 +2,9 @@ import { Move } from "./types";
 import { objectsEqual, WHQ } from "./utils";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import OpenAI from "openai";
+import { bird }from "./birds-database"
 
-/*const client = new QdrantClient({ host: "localhost", port: 6333 });*/
+const client = new QdrantClient({ host: "localhost", port: 6333 });
 
 const openai = new OpenAI({
   baseURL: "http://localhost:11434/v1/",
@@ -102,8 +103,8 @@ export function nlg(moves: Move[]): string {
 export function nlu(utterance: string): Move[] {
   return nluMapping[utterance.toLowerCase()] || []; // here is returned the empty array in case not understanding
 }
-/*
-export async function nluQdrant(utterance: string): Promise<Move[]> {
+
+export async function getBird(utterance: string): Promise<bird> {
   console.log("[NLU] Query");
   const embedding = await openai.embeddings
     .create({
@@ -112,28 +113,35 @@ export async function nluQdrant(utterance: string): Promise<Move[]> {
       dimensions: 384,
     })
     .then((result) => result.data[0].embedding);
-  const points = (await client.query("NLUdata", {
+  const points = (await client.query("birdsDBtest", {
     with_payload: true,
     query: embedding,
     limit: 1,
   })).points;
   if (points.length === 0) {
     console.log("[NLU] No result")
-    return []
+    
   };
-  const retrieved_nlu = points.map((item) => ({
-    utterance: item.payload?.utterance,
-    move: item.payload?.move as Move,
-    score: item.score
-  }));
-  console.log("[NLU] Result:", points[0]);
-  if (retrieved_nlu[0].score < 0.6) {
-    console.log(`[NLU] Result rejected, score ${retrieved_nlu[0].score} < 0.6`);
-    return [] }
-  console.log(`[NLU] Result accepted -> move: ${retrieved_nlu[0].move}`);
-  return [retrieved_nlu[0].move]
+  const retrieved_bird : bird = points.map((item) => ({
+    id: Number(item.id),
+    speciesname: item.payload!.speciesname as string,
+    scientificname: item.payload!.scientificname as string,
+    location: item.payload!.location as string[],
+    habitat: item.payload!.habitat as string[],
+    size: item.payload!.size as 'XS' | 'S' | 'M' | 'L',
+    status: item.payload!.status as 'Critically Endangered' | 'Endangered' | 'Vulnerable' |
+            'Near Threatened' | 'Conservation Dependent' | 'Least Concern',
+    description: item.payload!.description as string,
+  }))[0];
+  const score = points[0].score
+  console.log("[NLU] Result:", retrieved_bird);
+  if (score < 0.6) {
+    console.log(`[NLU] Result rejected, score ${score} < 0.6`);
+     }
+  console.log(`[NLU] Result accepted -> bird: ${retrieved_bird.speciesname}`);
+  return retrieved_bird
 }
-*/
+
 
 export async function nluLLM(utterance: string) : Promise<Move[]> {
   const instructions: string =
@@ -142,6 +150,7 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
   Use ONLY the following types and predicates, do not create new move label.
   For questions, use only given predicates.
   For answers, use only given predicates, and retrieve the string to fill in the argument of the proposition or the shortanswer.
+  If the answer corresponds to a bird description, insert *DESCRIPTION* at the beginning of the string followed by the user utterance.
   type Move = OtherMove | AnswerMove | AskMove ;
   interface OtherMove {
     "type": "greet" ;
@@ -163,9 +172,6 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
   type WhQuestion = { "type": "whq"; "predicate": string };
   const predicates = {
     favorite_food,
-    booking_room,
-    booking_course,
-    booking_day,
     user_location,
     bird_description,
     observed_bird,
@@ -182,50 +188,32 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
   "what is this bird?": [
     {
       "type": "ask",
-      "content": WHQ("observed_bird"),
-    },
-  ],
-  "where is the lecture?": [
-    {
-      "type": "ask",
-      "content": WHQ("booking_room"),
-    },
+      "content": WHQ("observed_bird")
+    }
   ],
   "what's your favorite food?": [
     {
       "type": "ask",
-      "content": WHQ("favorite_food"),
-    },
+      "content": WHQ("favorite_food")
+    }
   ],
   pizza: [
     {
       "type": "answer",
-      "content": "pizza",
-    },
-  ],
-  "dialogue systems 2": [
-    {
-      "type": "answer",
-      "content": "LT2319",
-    },
-  ],
-  "friday": [
-    {
-      "type": "answer",
-      "content": "friday",
-    },
+      "content": "pizza"
+    }
   ],
   "sweden": [
     {
       "type": "answer",
-      "content": "sweden",
-    },
+      "content": "sweden"
+    }
   ],
   "i see a small bird with a blue crown": [
     {
       "type": "answer",
-      "content": "i see a small bird with a blue crown",
-    },
+      "content": "*DESCRIPTION*i see a small bird with a blue crown"
+    }
   ],
 };
 

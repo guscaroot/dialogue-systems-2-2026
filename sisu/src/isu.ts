@@ -3,9 +3,10 @@ import { Settings, speechstate } from "speechstate";
 import { createBrowserInspector } from "@statelyai/inspect";
 import { KEY } from "./azure";
 import { DMContext, DMEvent, NextMovesEvent, Move } from "./types";
-import { nlg, nlu, nluLLM,  } from "./nlug"; // nluQdrant
+import { getBird, nlg, nlu, nluLLM,  } from "./nlug"; // nluQdrant
 import { dme } from "./dme";
 import { initialIS } from "./is";
+import { bird }from "./birds-database"
 
 const {inspect} = createBrowserInspector();
 
@@ -33,6 +34,9 @@ const dmMachine = setup({
     },),*/
     nluLLM: fromPromise<Move[], string>(async ({input}) => {
       return await nluLLM(input)
+    },),
+    getBird: fromPromise<bird, string>(async ({input}) => {
+      return await getBird(input)
     },),
   },
   actions: {
@@ -149,7 +153,21 @@ const dmMachine = setup({
               invoke: {
                 src: "nluLLM",
                 input: ({ context }) => context.lastUserUtterance!,
-                onDone: {
+                onDone: [
+                {
+                  guard: ({ event }) => event.output.some(
+                    i => i.type === 'answer' && 
+                    typeof i.content === 'string' && 
+                    i.content?.includes('*DESCRIPTION*')),
+                  target: "GettingBird",
+                  actions: [
+                  () => console.log("[NLU] Starting bird recognition"),
+                  assign(({ event }) => ({
+                    lastUserMoves: event.output,
+                  })),
+                  ]
+                },
+                {
                   target: "Idle",
                   actions: [
                     () => console.log("[NLU] Complete"),
@@ -162,6 +180,33 @@ const dmMachine = setup({
                       value: {
                         speaker: "usr",
                         moves: event.output,
+                      },
+                    })),
+                  ]
+                }
+              ]
+              }
+            },
+            GettingBird: {
+              invoke: {
+                src: "getBird",
+                input: ({ context }) => context.lastUserUtterance!,
+                onDone: {
+                  target: "Idle",
+                  actions: [
+                    () => console.log("[NLU] Complete"),
+                    ({ event, context }) => (context.is.private.bel.push(
+                      { predicate: "observed_bird",
+                      argument: event.output.speciesname}
+                    )),
+                    assign(() => ({
+                      lastUserUtterance: undefined,
+                    })),
+                    sendTo("dmeID", ({ context }) => ({
+                      type: "SAYS",
+                      value: {
+                        speaker: "usr",
+                        moves: context.lastUserMoves,
                       },
                     })),
                   ]
