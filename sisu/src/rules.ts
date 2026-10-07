@@ -226,7 +226,8 @@ export const rules: Rules = {
         const question = action.content as Question;
         const propositionFromDB = is.database.consultDB(
           question,
-          is.shared.com
+          is.shared.com,
+          is.retrievedBirds
         );
         if (propositionFromDB) {
           return () => ({

@@ -104,7 +104,7 @@ export function nlu(utterance: string): Move[] {
   return nluMapping[utterance.toLowerCase()] || []; // here is returned the empty array in case not understanding
 }
 
-export async function getBird(utterance: string): Promise<bird> {
+export async function getBird(utterance: string): Promise<bird[]> {
   console.log("[NLU] Query");
   const embedding = await openai.embeddings
     .create({
@@ -122,7 +122,7 @@ export async function getBird(utterance: string): Promise<bird> {
     console.log("[NLU] No result")
     
   };
-  const retrieved_bird : bird = points.map((item) => ({
+  const retrieved_birds : bird[] = points.map((item) => ({
     id: Number(item.id),
     speciesname: item.payload!.speciesname as string,
     scientificname: item.payload!.scientificname as string,
@@ -132,14 +132,16 @@ export async function getBird(utterance: string): Promise<bird> {
     status: item.payload!.status as 'Critically Endangered' | 'Endangered' | 'Vulnerable' |
             'Near Threatened' | 'Conservation Dependent' | 'Least Concern',
     description: item.payload!.description as string,
-  }))[0];
+  }));
   const score = points[0].score
-  console.log("[NLU] Result:", retrieved_bird);
+  console.log("[NLU] Result:", retrieved_birds);
+  /*
   if (score < 0.6) {
     console.log(`[NLU] Result rejected, score ${score} < 0.6`);
      }
-  console.log(`[NLU] Result accepted -> bird: ${retrieved_bird.speciesname}`);
-  return retrieved_bird
+  console.log(`[NLU] Result accepted -> bird: ${retrieved_birds.speciesname}`);
+  */
+  return retrieved_birds
 }
 
 
@@ -150,7 +152,7 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
   Use ONLY the following types and predicates, do not create new move label.
   For questions, use only given predicates.
   For answers, use only given predicates, and retrieve the string to fill in the argument of the proposition or the shortanswer.
-  If the answer corresponds to a bird description, insert *DESCRIPTION* at the beginning of the string followed by the user utterance.
+  If the answer corresponds to a bird description, insert use type 'answer' with predicate 'description' and the user utterance as argument.
   type Move = OtherMove | AnswerMove | AskMove ;
   interface OtherMove {
     "type": "greet" ;
@@ -212,7 +214,10 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
   "i see a small bird with a blue crown": [
     {
       "type": "answer",
-      "content": "*DESCRIPTION*i see a small bird with a blue crown"
+      "content": {
+        "predicate": "description",
+        "argument": "i see a small bird with a blue crown"
+      }
     }
   ],
 };

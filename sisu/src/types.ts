@@ -1,4 +1,5 @@
 import { SpeechStateExternalEvent } from "speechstate";
+import { bird } from "./birds-database"
 
 type Individuals = Predicates;
 type Predicates = { [index: string]: string };
@@ -6,6 +7,7 @@ export type Domain = {
   plans: PlanInfo[];
   predicates: Predicates; // Mapping from predicate to sort
   individuals: Individuals; // Mapping from individual to sort
+  openSorts: string[];
 };
 
 export type PlanInfo = {
@@ -15,7 +17,7 @@ export type PlanInfo = {
 };
 
 export type Database = {
-  consultDB: (q: Question, p: Proposition[]) => Proposition | null;
+  consultDB: (q: Question, p: Proposition[], retrievedBirds: bird[]) => Proposition | null;
 };
 
 export type ShortAnswer = string;
@@ -64,12 +66,13 @@ export interface InformationState {
     qud: Question[];
     com: Proposition[];
   };
+  retrievedBirds: bird[];
 }
 
 export interface DMContext extends TotalInformationState {
   ssRef: any;
   lastUserMoves?: Move[];
-  lastUserUtterance?: string
+  lastUserUtterance?: string;
 }
 
 export interface DMEContext extends TotalInformationState {

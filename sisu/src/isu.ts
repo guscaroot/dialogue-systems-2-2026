@@ -35,7 +35,7 @@ const dmMachine = setup({
     nluLLM: fromPromise<Move[], string>(async ({input}) => {
       return await nluLLM(input)
     },),
-    getBird: fromPromise<bird, string>(async ({input}) => {
+    getBird: fromPromise<bird[], string>(async ({input}) => {
       return await getBird(input)
     },),
   },
@@ -157,8 +157,8 @@ const dmMachine = setup({
                 {
                   guard: ({ event }) => event.output.some(
                     i => i.type === 'answer' && 
-                    typeof i.content === 'string' && 
-                    i.content?.includes('*DESCRIPTION*')),
+                    typeof i.content === 'object' && 
+                    i.content?.predicate === 'description'),
                   target: "GettingBird",
                   actions: [
                   () => console.log("[NLU] Starting bird recognition"),
@@ -194,11 +194,14 @@ const dmMachine = setup({
                 onDone: {
                   target: "Idle",
                   actions: [
-                    () => console.log("[NLU] Complete"),
-                    ({ event, context }) => (context.is.private.bel.push(
-                      { predicate: "observed_bird",
-                      argument: event.output.speciesname}
-                    )),
+                    () => console.log("[NLU] Bird recognition complete"),
+                    assign({
+                      is: ({ context, event }) => ({
+                        ...context.is,
+                        retrievedBirds: event.output,
+                      }),
+                    })
+                    ,
                     assign(() => ({
                       lastUserUtterance: undefined,
                     })),
