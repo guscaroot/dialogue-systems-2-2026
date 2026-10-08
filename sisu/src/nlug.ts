@@ -82,6 +82,8 @@ const nlgMapping: NLGMapping = [
   [{ type: "ask", content: WHQ("user_location") }, "Where are you?"],
   [{ type: "ask", content: WHQ("bird_description") }, "What do you see?"],
   [{ type: "answer", content: {predicate: "observed_bird", argument: "eurasian blue tit"}}, "I think it's a blue tit."],
+  [{ type: "answer", content: {predicate: "observed_bird", argument: "grey heron"}}, "I think it's a grey heron."],
+  [{ type: "answer", content: {predicate: "observed_bird", argument: "house sparrow"}}, "I think it's a house sparrow."],
 ];
 
 export function nlg(moves: Move[]): string {

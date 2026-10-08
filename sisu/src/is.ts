@@ -59,7 +59,7 @@ export const initialIS = (): InformationState => {
         return null */
         
         if (birds && birds.length ===1) {
-          const birdname = birds[0].speciesname
+          const birdname = birds[0].speciesname.toLowerCase()
           return { predicate: "observed_bird", argument: birdname }
         }
         return null
