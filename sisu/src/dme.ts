@@ -1,6 +1,6 @@
 import { setup, assign, sendTo, AnyTransitionConfig } from "xstate";
 import { rules } from "./rules";
-import { SaysMovesEvent, DMEEvent, DMEContext } from "./types";
+import { SaysMovesEvent, DMEEvent, DMEContext, BirdsRetrievedEvent } from "./types";
 
 /**
  * Creates a transition with a guarded ISU.
@@ -55,14 +55,24 @@ export const dme = setup({
       console.info("[DM updateLatestMoves]");
       console.dir(event, { depth: null, colors: true });
       return {
-        latest_moves: (event as SaysMovesEvent).value.moves,
-        latest_speaker: (event as SaysMovesEvent).value.speaker,
+        latest_moves: (event as SaysMovesEvent|BirdsRetrievedEvent).value.moves,
+        latest_speaker: (event as SaysMovesEvent|BirdsRetrievedEvent).value.speaker,
         is: {
           ...context.is,
           next_moves: [],
         },
       };
     }),
+    storeBirdRetrieval: assign(({ event }) => {
+        if (event.type !== "BIRDS_RETRIEVED") {
+        return {};
+      }
+
+      return {
+        retrievedBirds: event.value.birds,
+      };
+    }),
+
   },
 }).createMachine({
   context: ({ input }) => {
@@ -115,6 +125,16 @@ export const dme = setup({
                 { type: "isu", params: { name: "get_latest_move" } },
               ],
             },
+            BIRDS_RETRIEVED: {
+              target: "Integrate",
+              actions: [
+                { type: "storeBirdRetrieval" },
+                {
+                  type: "updateLatestMoves",
+                },
+                { type: "isu", params: { name: "get_latest_move" } },
+              ],
+            },
           },
         },
         Integrate: {
@@ -122,6 +142,7 @@ export const dme = setup({
             isuTransition("DowndateQUD", "integrate_usr_request"),
             isuTransition("DowndateQUD", "integrate_sys_ask"),
             isuTransition("DowndateQUD", "integrate_usr_ask"),
+            isuTransition("DowndateQUD", "integrate_retrieved_birds"),
             isuTransition("DowndateQUD", "integrate_answer"),
             isuTransition("DowndateQUD", "integrate_greet"),
             { target: "DowndateQUD" },

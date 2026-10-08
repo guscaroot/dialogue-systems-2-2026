@@ -13,7 +13,7 @@ export const initialIS = (): InformationState => {
   const predicates: { [index: string]: string } = {
     // Mapping from predicate to sort
     user_location: "location",
-    description: "description",
+    bird_description: "description",
     observed_bird: "bird",
   };
   const individuals: { [index: string]: string } = {
@@ -34,7 +34,7 @@ export const initialIS = (): InformationState => {
           content: WHQ("observed_bird"),
           plan: [
             findout(WHQ("user_location")),
-            findout(WHQ("description")),
+            findout(WHQ("bird_description")),
             consultDB(WHQ("observed_bird")),
           ],
         },
@@ -79,6 +79,5 @@ export const initialIS = (): InformationState => {
       bel: [{ predicate: "favorite_food", argument: "pizza" }],
     },
     shared: { lu: undefined, qud: [], com: [] },
-    retrievedBirds: [],
   };
 };

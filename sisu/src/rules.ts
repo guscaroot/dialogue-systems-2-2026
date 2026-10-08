@@ -227,7 +227,7 @@ export const rules: Rules = {
         const propositionFromDB = is.database.consultDB(
           question,
           is.shared.com,
-          is.retrievedBirds
+          is.retrievedBirds!
         );
         if (propositionFromDB) {
           return () => ({
@@ -370,7 +370,30 @@ export const rules: Rules = {
         next_moves: moves,
       });
     }
+  },
+
+  /* new rule to integrate retrieved birds and answer*/
+  integrate_retrieved_birds: ({ is, retrievedBirds }) => {
+    const topQUD = is.shared.qud[0];
+    if (topQUD) {
+      if (retrievedBirds) {
+        for (const move of is.shared.lu!.moves) {
+          if (move.type === "answer") {
+            const a = move.content;
+            if (relevant(is.domain, a, topQUD)) {
+              let proposition = combine(is.domain, topQUD, a);
+              return () => ({
+                ...is,
+                shared: {
+                  ...is.shared,
+                  com: [proposition, ...is.shared.com],
+                },
+                retrievedBirds: retrievedBirds
+              });
+            }
+          }
+        }
+      }
+    }
   }
-
-
-};
+}

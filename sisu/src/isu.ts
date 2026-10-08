@@ -158,7 +158,7 @@ const dmMachine = setup({
                   guard: ({ event }) => event.output.some(
                     i => i.type === 'answer' && 
                     typeof i.content === 'object' && 
-                    i.content?.predicate === 'description'),
+                    i.content?.predicate === 'bird_description'),
                   target: "GettingBird",
                   actions: [
                   () => console.log("[NLU] Starting bird recognition"),
@@ -195,21 +195,15 @@ const dmMachine = setup({
                   target: "Idle",
                   actions: [
                     () => console.log("[NLU] Bird recognition complete"),
-                    assign({
-                      is: ({ context, event }) => ({
-                        ...context.is,
-                        retrievedBirds: event.output,
-                      }),
-                    })
-                    ,
                     assign(() => ({
                       lastUserUtterance: undefined,
                     })),
-                    sendTo("dmeID", ({ context }) => ({
-                      type: "SAYS",
+                    sendTo("dmeID", ({ event, context }) => ({
+                      type: "BIRDS_RETRIEVED",
                       value: {
+                        birds: event.output,
                         speaker: "usr",
-                        moves: context.lastUserMoves,
+                        moves: context.lastUserMoves
                       },
                     })),
                   ]

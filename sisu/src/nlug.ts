@@ -80,7 +80,7 @@ const nlgMapping: NLGMapping = [
     "Sorry, I didn't hear you.",
   ],
   [{ type: "ask", content: WHQ("user_location") }, "Where are you?"],
-  [{ type: "ask", content: WHQ("description") }, "What do you see?"],
+  [{ type: "ask", content: WHQ("bird_description") }, "What do you see?"],
   [{ type: "answer", content: {predicate: "observed_bird", argument: "eurasian blue tit"}}, "I think it's a blue tit."],
 ];
 
@@ -148,11 +148,13 @@ export async function getBird(utterance: string): Promise<bird[]> {
 export async function nluLLM(utterance: string) : Promise<Move[]> {
   const instructions: string =
   `Map the user utterance below into a list of moves.
+  Use ONLY lowercase.
   Do not add anything else than the list of objects move. No explanation. No introduction. Start with [ and end with ].
   Use ONLY the following types and predicates, do not create new move label.
   For questions, use only given predicates.
   For answers, use only given predicates, and retrieve the string to fill in the argument of the proposition or the shortanswer.
-  If the answer corresponds to a bird description, insert use type 'answer' with predicate 'description' and the user utterance as argument.
+  If the answer corresponds to a bird description, use type 'answer' with predicate 'bird_description' and the user utterance as argument.
+  If the answer corresponds to a location, use type 'answer' with predicate 'user_location' in case of a Proposition.
   type Move = OtherMove | AnswerMove | AskMove ;
   interface OtherMove {
     "type": "greet" ;
@@ -178,25 +180,43 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
     bird_description,
     observed_bird,
   };
-  function WHQ(predicate: string): Question {
-    return {
-      "type": "whq",
-      "predicate": predicate,
-    };
-  }
 
   Examples:
-   NLUMapping = {
+  NLUMapping = {
   "what is this bird?": [
     {
       "type": "ask",
-      "content": WHQ("observed_bird")
+      "content": {
+        "type": "whq",
+        "predicate": "observed_bird"
+      }
+    }
+  ],
+  "help me identify a bird": [
+    {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "observed_bird"
+      }
+    }
+  ],
+  "i see a bird and want to know which species it is": [
+    {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "observed_bird"
+      }
     }
   ],
   "what's your favorite food?": [
     {
       "type": "ask",
-      "content": WHQ("favorite_food")
+      "content": {
+        "type": "whq",
+        "predicate": "favorite_food"
+      }
     }
   ],
   pizza: [
@@ -211,19 +231,42 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
       "content": "sweden"
     }
   ],
+  "i'm in gothenburg": [
+    {
+      "type": "answer",
+      "content": {
+        "predicate": "user_location",
+        "argument":"gothenburg"
+      }
+    }
+  ],
+  "france": [
+    {
+      "type": "answer",
+      "content": "france"
+    }
+  ],
   "i see a small bird with a blue crown": [
     {
       "type": "answer",
       "content": {
-        "predicate": "description",
+        "predicate": "bird_description",
         "argument": "i see a small bird with a blue crown"
+      }
+    }
+  ],
+  "it's a long bird with long legs and a long beak": [
+    {
+      "type": "answer",
+      "content": {
+        "predicate": "bird_description",
+        "argument": "it's a long bird with long legs and a long beak"
       }
     }
   ],
 };
 
-User utterance:
-  `
+User utterance:`
   const prompt:string = instructions.concat('/n', utterance)
   console.log("[NLU] Query");
   const response = await openai.chat.completions

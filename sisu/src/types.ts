@@ -66,7 +66,7 @@ export interface InformationState {
     qud: Question[];
     com: Proposition[];
   };
-  retrievedBirds: bird[];
+  retrievedBirds?: bird[];
 }
 
 export interface DMContext extends TotalInformationState {
@@ -86,6 +86,7 @@ export interface TotalInformationState {
 
   /** information state */
   is: InformationState;
+  retrievedBirds?: bird[];
 }
 
 export type DMEvent =
@@ -93,7 +94,9 @@ export type DMEvent =
   | SpeechStateExternalEvent
   | NextMovesEvent;
 
-export type DMEEvent = SaysMovesEvent;
+export type DMEEvent = 
+  |SaysMovesEvent
+  |BirdsRetrievedEvent;
 
 export type SaysMovesEvent = {
   type: "SAYS";
@@ -103,4 +106,13 @@ export type SaysMovesEvent = {
 export type NextMovesEvent = {
   type: "NEXT_MOVES";
   value: Move[];
+};
+
+export type BirdsRetrievedEvent = {
+  type: "BIRDS_RETRIEVED";
+  value: {
+    birds: bird[];
+    speaker: Speaker;
+    moves: Move[]
+  };
 };
