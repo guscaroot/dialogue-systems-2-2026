@@ -149,43 +149,56 @@ export async function getBird(utterance: string): Promise<bird[]> {
 
 export async function nluLLM(utterance: string) : Promise<Move[]> {
   const instructions: string =
-  `Map the user utterance below into a list of moves.
+  `Map the user utterance below into a JSON array of Move objects.
+  Return ONLY valid JSON.
   Use ONLY lowercase.
-  Do not add anything else than the list of objects move. No explanation. No introduction. Start with [ and end with ].
+  Do not add anything else than the array. No explanation. No introduction. Start with [ and end with ].
   Use ONLY the following types and predicates, do not create new move label.
   For questions, use only given predicates.
   For answers, use only given predicates, and retrieve the string to fill in the argument of the proposition or the shortanswer.
   If the answer corresponds to a bird description, use type 'answer' with predicate 'bird_description' and the user utterance as argument.
   If the answer corresponds to a location, use type 'answer' with predicate 'user_location' in case of a Proposition.
-  type Move = OtherMove | AnswerMove | AskMove ;
-  interface OtherMove {
-    "type": "greet" ;
-    "content": null | string;
-  } ;
-  interface AnswerMove {
-    "type": "answer";
-    "content": Proposition | ShortAnswer;
-  } ;
-  interface AskMove {
-    "type": "ask";
-    "content": WhQuestion;
-  } ;
-  type ShortAnswer = string;
-  type Proposition = {
-    "predicate": string;
-    "argument": string;
-};
-  type WhQuestion = { "type": "whq"; "predicate": string };
-  const predicates = {
-    favorite_food,
-    user_location,
-    bird_description,
-    observed_bird,
-  };
+  
+  Allowed move types are exactly:
+  - "greet",
+  - "answer",
+  - "ask"
+
+  Allowed predicates are exactly:
+  - "favorite_food"
+  - "user_location"
+  - "bird_description"
+  - "observed_bird"
+
+  For an ask move:
+  {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": string
+    }
+  }
+
+  For an answer with a proposition:
+  {
+    "type": "answer",
+    "content": {
+      "predicate": predicate,
+      "argument": string
+    }
+  }
+
+  For a short answer:
+  {
+    "type": "answer",
+    "content": string
+  }
 
   Examples:
-  NLUMapping = {
-  "what is this bird?": [
+  
+  User: "what is this bird?"
+  Output:
+  [
     {
       "type": "ask",
       "content": {
@@ -193,8 +206,11 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
         "predicate": "observed_bird"
       }
     }
-  ],
-  "help me identify a bird": [
+  ]
+
+  User: "help me identify a bird"
+  Output:
+  [
     {
       "type": "ask",
       "content": {
@@ -202,8 +218,11 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
         "predicate": "observed_bird"
       }
     }
-  ],
-  "i see a bird and want to know which species it is": [
+  ]
+
+  User: "i see a bird and want to know which species it is"
+  Output:
+  [
     {
       "type": "ask",
       "content": {
@@ -211,8 +230,11 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
         "predicate": "observed_bird"
       }
     }
-  ],
-  "what's your favorite food?": [
+  ]
+
+  User: "what's your favorite food?"
+  Output:
+  [
     {
       "type": "ask",
       "content": {
@@ -220,20 +242,29 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
         "predicate": "favorite_food"
       }
     }
-  ],
-  pizza: [
+  ]
+
+  User: "pizza"
+  Output:
+  [
     {
       "type": "answer",
       "content": "pizza"
     }
-  ],
-  "sweden": [
+  ]
+
+  User: "sweden"
+  Output:
+  [
     {
       "type": "answer",
       "content": "sweden"
     }
-  ],
-  "i'm in gothenburg": [
+  ]
+
+  User: "i'm in gothenburg"
+  Output:
+  [
     {
       "type": "answer",
       "content": {
@@ -241,14 +272,20 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
         "argument":"gothenburg"
       }
     }
-  ],
-  "france": [
+  ]
+
+  User: "france"
+  Output:
+  [
     {
       "type": "answer",
       "content": "france"
     }
-  ],
-  "i see a small bird with a blue crown": [
+  ]
+  
+  User: "i see a small bird with a blue crown"
+  Output:
+  [
     {
       "type": "answer",
       "content": {
@@ -256,8 +293,11 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
         "argument": "i see a small bird with a blue crown"
       }
     }
-  ],
-  "it's a long bird with long legs and a long beak": [
+  ]
+  
+  User: "it's a long bird with long legs and a long beak"
+  Output:
+  [
     {
       "type": "answer",
       "content": {
@@ -265,8 +305,8 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
         "argument": "it's a long bird with long legs and a long beak"
       }
     }
-  ],
-};
+  ]
+    
 
 User utterance:`
   const prompt:string = instructions.concat('/n', utterance)

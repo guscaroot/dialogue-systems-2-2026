@@ -52,6 +52,10 @@ export const dme = setup({
       return { is: newIS };
     }),
     updateLatestMoves: assign(({ context, event }) => {
+      console.log("[DME] updateLatestMoves received:", event);
+      console.log("[DME] Current latest_speaker:", context.latest_speaker);
+      console.log("[DME] Incoming moves:",JSON.stringify(
+        (event as SaysMovesEvent | BirdsRetrievedEvent).value.moves, null, 2));
       console.info("[DM updateLatestMoves]");
       console.dir(event, { depth: null, colors: true });
       return {
@@ -67,7 +71,6 @@ export const dme = setup({
         if (event.type !== "BIRDS_RETRIEVED") {
         return {};
       }
-
       return {
         retrievedBirds: event.value.birds,
       };
@@ -114,11 +117,14 @@ export const dme = setup({
           always: isuTransition("Grounding", "clear_agenda"),
         },
         Grounding: {
+          entry: () => console.log("[DME] Entered Update.Grounding"),
           // TODO: rename to Perception?
           on: {
             SAYS: {
               target: "Integrate",
               actions: [
+                () => console.log("[DME] SAYS handler entered"),
+                (event) => console.log("[DME] Incoming SAYS event:", JSON.stringify(event, null, 2)),
                 {
                   type: "updateLatestMoves",
                 },
