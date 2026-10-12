@@ -16,8 +16,13 @@ export type PlanInfo = {
   plan: Action[];
 };
 
+type consultDBResult =
+  | { type: "identified"; proposition: Proposition }
+  | { type: "moreInfo_needed"; actions: Action[] }
+  | { type: "no_match" }
+
 export type Database = {
-  consultDB: (q: Question, p: Proposition[], retrievedBirds: bird[]) => Proposition | null;
+  consultDB: (q: Question, p: Proposition[], retrievedBirds: bird[]) => consultDBResult | null;
 };
 
 export type ShortAnswer = string;
@@ -67,6 +72,7 @@ export interface InformationState {
     com: Proposition[];
   };
   retrievedBirds?: bird[];
+  totalDescription: string[];
 }
 
 export interface DMContext extends TotalInformationState {

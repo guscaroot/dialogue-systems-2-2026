@@ -4,6 +4,7 @@ import {
   InformationState,
   Move,
   Action,
+  Proposition
 } from "./types";
 import { relevant, resolves, combine } from "./semantics";
 import { objectsEqual } from "./utils";
@@ -120,6 +121,21 @@ export const rules: Rules = {
           const a = move.content;
           if (relevant(is.domain, a, topQUD)) {
             let proposition = combine(is.domain, topQUD, a);
+            if (typeof move.content === "object" &&
+              move.content.predicate === "bird_description" &&
+              is.totalDescription.length != 0) {
+                const extendedProposition = {
+                  predicate: "bird_description",
+                  argument: is.totalDescription.join('. ') + ". " + proposition.argument
+                }
+                return () => ({
+                  ...is,
+                  shared: {
+                    ...is.shared,
+                    com: [extendedProposition, ...is.shared.com],
+                  },
+                });
+              }
             return () => ({
               ...is,
               shared: {
@@ -224,18 +240,59 @@ export const rules: Rules = {
       const action = is.private.plan[0];
       if (action.type === "consultDB") {
         const question = action.content as Question;
-        const propositionFromDB = is.database.consultDB(
+        const birds = is.retrievedBirds ?? [];
+        const result = is.database.consultDB(
           question,
           is.shared.com,
-          is.retrievedBirds!
+          birds
         );
-        if (propositionFromDB) {
+        if (result!.type === "identified") {
+          const propositionFromDB = result!.proposition
           return () => ({
             ...is,
             private: {
               ...is.private,
               plan: [...is.private.plan.slice(1)],
               bel: [...is.private.bel, propositionFromDB],
+            },
+          });
+        }
+        if (result!.type === "moreInfo_needed") {
+          const previous_description = is.shared.com.find(
+            (p: Proposition) => p.predicate === 'bird_description')?.argument
+          
+          return () => ({
+            ...is,
+            private: {
+                ...is.private,
+                plan: [
+                    ...result!.actions,
+                    ...is.private.plan.slice(1),
+                ],
+            },
+            shared: {
+              ...is.shared,
+              com: is.shared.com.filter((p: Proposition) => {
+                if (p.predicate === 'bird_description') {
+                  return false
+                }
+                return true;
+              })
+            },
+            totalDescription: [
+              ...is.totalDescription,
+              ...[previous_description!] 
+            ],
+          });
+        }
+        if (result!.type === "no_match") {
+          const proposition = { predicate: "observed_bird", argument: "unknown" }
+          return () => ({
+            ...is,
+            private: {
+              ...is.private,
+              plan: [...is.private.plan.slice(1)],
+              bel: [...is.private.bel, proposition],
             },
           });
         }

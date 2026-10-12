@@ -335,6 +335,18 @@ console.log(
       { speaker: "sys", message: "I think it's a house sparrow." },
     ]);
   });
+
+  describe("bird observation - house sparrow", () => {
+    runTest([
+      { speaker: "sys", message: "Hello! You can ask me anything!" },
+      { speaker: "usr", message: "Please assist me in identifying a bird" },
+      { speaker: "sys", message: "Where are you?" },
+      { speaker: "usr", message: "I'm in Sweden" },
+      { speaker: "sys", message: "What do you see?" },
+      { speaker: "usr", message: "The bird is quite small and brown, reddish on the head" },
+      { speaker: "sys", message: "What do you see?" },
+    ]);
+  });
 /*
   describe("bird observation + negative contact feedback + repeated question", () => {
     runTest([

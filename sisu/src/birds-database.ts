@@ -93,4 +93,30 @@ const greyHeron: bird = {
     description: "A large, long-legged wading bird standing up to 100 cm tall and measuring 84–102 cm long, with a wingspan of 155–195 cm and a body weight of 1.02–2.08 kg. Its plumage is largely ashy-grey above and greyish-white below, with some black on the flanks. Adults have a white head and neck with a broad black stripe extending from the eye to a slender, dangling crest, and bluish-black streaks on the front of the neck. The scapular feathers and feathers at the base of the neck are somewhat elongated. Its beak is long, straight and powerful, pinkish-yellow and brighter in breeding adults. The iris is yellow and the legs are brown and very long. Immature birds have a grey head stripe, a paler grey face, a smaller dark grey crest and are generally duller in appearance."
 };
 
+const greatTit: bird = {
+    id: 4,
+    "speciesname": "great tit",
+    "scientificname": "Parus major",
+    "location": [
+        "Europe",
+        "North Africa",
+        "Middle East",
+        "Central Asia",
+        "Northern Asia"
+    ],
+    "habitat": [
+        "Open deciduous woodland",
+        "Mixed forests",
+        "Forest edges",
+        "Gardens",
+        "Forest clearings",
+        "Boreal taiga",
+        "Oak forests",
+        "Riverine willow and birch forests"
+    ],
+    "status": "Least Concern",
+    "size": "XS",
+    "description": "Usually 12.5–14 cm long. The male has a bluish-black crown, black neck, throat, bib and head, with prominent white cheeks and ear coverts. The breast is bright lemon-yellow, with a broad black stripe running down the middle from the bib to the vent. There is a dull white spot on the neck that turns greenish-yellow on the upper nape. The rest of the nape and back are green tinged with olive. The wing-coverts are green, while the rest of the wing is bluish-grey with a white wing-bar. The tail is bluish-grey with white outer tips. The male's plumage is typically bright, although coloration varies among subspecies."
+}
+
 export const birdsDB: bird[] = [eurasianBlueTit, houseSparrow, greyHeron]

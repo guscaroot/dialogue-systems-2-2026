@@ -1,4 +1,4 @@
-import { InformationState } from "./types";
+import { InformationState, Action } from "./types";
 import {
   objectsEqual,
   WHQ,
@@ -43,28 +43,29 @@ export const initialIS = (): InformationState => {
     database: {
       consultDB: (question, facts, birds) => {
         if (objectsEqual(question, WHQ("observed_bird"))) {
-          /*const location = getFactArgument(facts, "user_location");
-          console.log(location)
-          const description = getFactArgument(facts, "description");
-          console.log(description)
-      
-          if (birdsDB.some(i => ((i.location).some(j=>j===location) && i.description.includes(`${description}`)))) {
-            const bird = birdsDB.find(i => ((i.location).some(j=>j===location) && i.description.includes(`${description}`)))
-            const birdname = bird?.speciesname
-            console.log(birdname)
-
-            return { predicate: "observed_bird", argument: birdname!  };
-          };
-        };
-        return null */
         
-        if (birds && birds.length ===1) {
-          const birdname = birds[0].speciesname.toLowerCase()
-          return { predicate: "observed_bird", argument: birdname }
+          if (birds && birds.length === 1) {
+            const birdname = birds[0].speciesname.toLowerCase()
+            return {
+              type: "identified",
+              proposition: { predicate: "observed_bird", argument: birdname }
+            }
+          }
+          if (birds && birds.length > 1) {
+            // TO DO: getnewQuestion using LLM to discriminate between retrieved species
+            const new_plan: Action[] = [
+              findout(WHQ("bird_description")),
+              consultDB(WHQ("observed_bird")),
+            ]
+            return {
+              type: "moreInfo_needed",
+              actions: new_plan
+            }
+          }
+          return { type: "no_match" };
+          // TO DO: handle no match case
         }
         return null
-        }
-        return null;
       },
     },
     next_moves: [],
@@ -79,5 +80,6 @@ export const initialIS = (): InformationState => {
       bel: [{ predicate: "favorite_food", argument: "pizza" }],
     },
     shared: { lu: undefined, qud: [], com: [] },
+    totalDescription: [],
   };
 };

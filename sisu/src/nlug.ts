@@ -118,7 +118,7 @@ export async function getBird(utterance: string): Promise<bird[]> {
   const points = (await client.query("birdsDBtest", {
     with_payload: true,
     query: embedding,
-    limit: 1,
+    limit: 2,
   })).points;
   if (points.length === 0) {
     console.log("[NLU] No result")
