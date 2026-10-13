@@ -30,10 +30,11 @@ export function objectsEqual(obj1: any, obj2: any) {
   return true;
 }
 
-export function WHQ(predicate: string): Question {
+export function WHQ(predicate: string, text?: string): Question {
   return {
     type: "whq",
     predicate: predicate,
+    ...(text !== undefined && { text: text }),
   };
 }
 

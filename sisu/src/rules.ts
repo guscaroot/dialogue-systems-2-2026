@@ -241,10 +241,12 @@ export const rules: Rules = {
       if (action.type === "consultDB") {
         const question = action.content as Question;
         const birds = is.retrievedBirds ?? [];
+        const bird_question = is.generatedBirdQuestion
         const result = is.database.consultDB(
           question,
           is.shared.com,
-          birds
+          birds,
+          bird_question
         );
         if (result!.type === "identified") {
           const propositionFromDB = result!.proposition
@@ -258,9 +260,6 @@ export const rules: Rules = {
           });
         }
         if (result!.type === "moreInfo_needed") {
-          const previous_description = is.shared.com.find(
-            (p: Proposition) => p.predicate === 'bird_description')?.argument
-          
           return () => ({
             ...is,
             private: {
@@ -279,10 +278,7 @@ export const rules: Rules = {
                 return true;
               })
             },
-            totalDescription: [
-              ...is.totalDescription,
-              ...[previous_description!] 
-            ],
+            generatedBirdQuestion: undefined
           });
         }
         if (result!.type === "no_match") {
@@ -325,6 +321,15 @@ export const rules: Rules = {
       ["findout", "raise"].includes(is.private.agenda[0].type)
     ) {
       const q = is.private.agenda[0].content as Question;
+      console.log("[select_ask] Selected question:", q);
+
+    const askMove: Move = {
+      type: "ask",
+      content: q,
+    };
+console.log("[select_ask] Agenda:", is.private.agenda);
+console.log("[select_ask] Plan:", is.private.plan);
+    console.log("[select_ask] Generated ask move:", askMove);
       if (is.private.plan[0] && is.private.plan[0].type === "raise") {
         newIS = {
           ...is,
@@ -452,5 +457,16 @@ export const rules: Rules = {
         }
       }
     }
-  }
+  },
+
+  /* new rule to integrate bird question generated */
+  integrate_bird_question: ({ is, generatedBirdQuestion }) => {
+    if (generatedBirdQuestion) {
+      return () => ({
+        ...is,
+        generatedBirdQuestion: generatedBirdQuestion
+      });
+    }
+  },
+
 }

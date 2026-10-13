@@ -33,6 +33,9 @@ export const dme = setup({
     latestSpeakerIsUsr: ({ context }) => {
       return context.latest_speaker == "usr";
     },
+    multipleBirdsRetrieved: ({ event }) =>
+    event.type === "BIRDS_RETRIEVED" &&
+    event.value.birds.length > 1,
   },
   actions: {
     sendBackNextMoves: sendTo(
@@ -75,7 +78,38 @@ export const dme = setup({
         retrievedBirds: event.value.birds,
       };
     }),
-
+    storeDescription: assign(({ context, event }) => {
+      if (event.type !== "BIRDS_RETRIEVED") {
+        return {};
+      }
+      const move = event.value.moves.find(
+        (move) =>
+          move.type === "answer" &&
+          typeof move.content === "object" &&
+          move.content.predicate === "bird_description"
+      );
+      if (move && move.type === "answer" && typeof move.content == "object") {
+        const description = move.content.argument
+        return {
+          is: {
+            ...context.is,
+            totalDescription: [
+              ...context.is.totalDescription,
+              description,
+            ],
+          },
+        };
+      }
+      return {};
+    }),
+    storeBirdQuestion: assign(({ event }) => {
+      if (event.type !== "BIRD_QUESTION_GENERATED") {
+        return {};
+      }
+      return {
+        generatedBirdQuestion: event.value,
+      };
+    }),
   },
 }).createMachine({
   context: ({ input }) => {
@@ -131,17 +165,51 @@ export const dme = setup({
                 { type: "isu", params: { name: "get_latest_move" } },
               ],
             },
-            BIRDS_RETRIEVED: {
-              target: "Integrate",
-              actions: [
-                { type: "storeBirdRetrieval" },
-                {
-                  type: "updateLatestMoves",
-                },
-                { type: "isu", params: { name: "get_latest_move" } },
-              ],
+            BIRDS_RETRIEVED: [
+              {
+                guard: "multipleBirdsRetrieved",
+                target: "AwaitBirdQuestion",
+                actions: [
+                  { type: "storeBirdRetrieval" },
+                  { type: "storeDescription" },
+                  { type: "updateLatestMoves" },
+                  { type: "isu", params: { name: "get_latest_move" } },
+                ],
+              },
+              {
+                target: "Integrate",
+                actions: [
+                  { type: "storeBirdRetrieval" },
+                  { type: "storeDescription" },
+                  {
+                    type: "updateLatestMoves",
+                  },
+                  { type: "isu", params: { name: "get_latest_move" } },
+                ],
+              },
+            ],
+          },
+        },
+        AwaitBirdQuestion: {
+          entry: () => console.log("[DME] Waiting for generated bird question"),
+          on: {
+            BIRD_QUESTION_GENERATED: {
+              target: "IntegrateBirdQuestion",
+              actions: { type: "storeBirdQuestion" },
             },
           },
+        },
+        IntegrateBirdQuestion : {
+          entry: ({ context }) => {
+    console.log(
+      "[DME] IntegrateBirdQuestion entered",
+      context.generatedBirdQuestion
+    );
+  },
+          always: [
+            isuTransition("Integrate", "integrate_bird_question"),
+            { target: "Integrate" },
+          ],
         },
         Integrate: {
           always: [

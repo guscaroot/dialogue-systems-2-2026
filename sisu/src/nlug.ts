@@ -89,6 +89,12 @@ const nlgMapping: NLGMapping = [
 export function nlg(moves: Move[]): string {
   console.log("generating moves", moves);
   function generateMove(move: Move): string {
+    if (
+      move.type === "ask" &&
+      move.content.text
+    ) {
+      return move.content.text;
+    }
     const mapping = nlgMapping.find((x) => objectsEqual(x[0], move));
     if (mapping) {
       return mapping[1];
@@ -148,8 +154,8 @@ export async function getBird(utterance: string): Promise<bird[]> {
 
 
 export async function nluLLM(utterance: string) : Promise<Move[]> {
-  const instructions: string =
-  `Map the user utterance below into a JSON array of Move objects.
+  const instructions: string = `
+  Map the user utterance below into a JSON array of Move objects.
   Return ONLY valid JSON.
   Use ONLY lowercase.
   Do not add anything else than the array. No explanation. No introduction. Start with [ and end with ].
@@ -308,7 +314,8 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
   ]
     
 
-User utterance:`
+User utterance:
+`
   const prompt:string = instructions.concat('/n', utterance)
   console.log("[NLU] Query");
   const response = await openai.chat.completions
@@ -321,4 +328,43 @@ User utterance:`
   const moves: Move[] = JSON.parse(response!)
 
   return moves
+};
+
+
+export async function getBirdQuestion(birds: bird[]) : Promise<string> {
+  const birdDescriptions: string = birds.map(
+    (bird) => `${bird.speciesname}: ${bird.description}`
+  ).join('\n');
+  const prompt:string = `
+  You are a bird identification assistant.
+  The following bird species are possible matches:
+  ${birdDescriptions}
+
+  Your task is to formulate the SINGLE MOST DISCRIMINATING question that will help distinguish between these candidates.
+
+  Instructions:
+  1. Compare the candidates' characteristics, based only on the provided descriptions.
+  2. Identify a visible characteristic that best separates them (such as colour, size, markings, or shape).
+  3. Prefer characteristics that divide the candidates into distinct groups.
+  4. Ask about easily observable features such as plumage, head colour, beak shape, body size, or leg length.
+  5. Avoid questions about characteristics shared by all candidates.
+  6. Make the question short, clear, and easy for a non-expert to answer.
+  7. Do not ask about a characteristic that cannot reasonably be inferred from the available descriptions.
+  8. Do not name the bird species.
+  9. Use ONLY open-ended or multiple-choice questions.
+  10. NEVER ask yes/no questions.
+  11. For every question, explicitly ask the user to answer in a complete sentence describing what they observe, even when the question offers multiple-choice options. Never encourage one-word answers.
+  12. Return ONLY the question text, without JSON or explanations.
+`;
+
+  console.log("[MORE INFO NEEDED] Getting bird question");
+  const response = await openai.chat.completions
+  .create({
+        messages:[{ role:  "user" , content: prompt }],
+        model:'llama3.1:latest',
+        temperature: 0.2 // fore more predictable / consistent responses
+     })
+  .then((result) => result.choices[0].message.content?.trim() ?? "")
+  console.log("[MORE INFO NEEDED] additional question to ask:", response);
+  return response
 };

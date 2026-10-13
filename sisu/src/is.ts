@@ -41,7 +41,7 @@ export const initialIS = (): InformationState => {
       ],
     },
     database: {
-      consultDB: (question, facts, birds) => {
+      consultDB: (question, facts, birds, bird_question) => {
         if (objectsEqual(question, WHQ("observed_bird"))) {
         
           if (birds && birds.length === 1) {
@@ -52,9 +52,8 @@ export const initialIS = (): InformationState => {
             }
           }
           if (birds && birds.length > 1) {
-            // TO DO: getnewQuestion using LLM to discriminate between retrieved species
             const new_plan: Action[] = [
-              findout(WHQ("bird_description")),
+              findout(WHQ("bird_description", bird_question)),
               consultDB(WHQ("observed_bird")),
             ]
             return {

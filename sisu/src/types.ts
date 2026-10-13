@@ -22,7 +22,7 @@ type consultDBResult =
   | { type: "no_match" }
 
 export type Database = {
-  consultDB: (q: Question, p: Proposition[], retrievedBirds: bird[]) => consultDBResult | null;
+  consultDB: (q: Question, p: Proposition[], retrievedBirds: bird[], generatedBirdQuestion?: string) => consultDBResult | null;
 };
 
 export type ShortAnswer = string;
@@ -32,7 +32,7 @@ export type Proposition = {
 };
 
 export type Question = WhQuestion;
-type WhQuestion = { type: "whq"; predicate: string };
+type WhQuestion = { type: "whq"; predicate: string ; text?: string };
 
 interface OtherMove {
   type: "greet" | "request" | "noUnderstandingFeedback" | "noInputFeedback" | "noInput";
@@ -73,6 +73,7 @@ export interface InformationState {
   };
   retrievedBirds?: bird[];
   totalDescription: string[];
+  generatedBirdQuestion?: string;
 }
 
 export interface DMContext extends TotalInformationState {
@@ -93,6 +94,8 @@ export interface TotalInformationState {
   /** information state */
   is: InformationState;
   retrievedBirds?: bird[];
+  totalDescription: string[];
+  generatedBirdQuestion?: string;
 }
 
 export type DMEvent =
@@ -101,8 +104,9 @@ export type DMEvent =
   | NextMovesEvent;
 
 export type DMEEvent = 
-  |SaysMovesEvent
-  |BirdsRetrievedEvent;
+  | SaysMovesEvent
+  | BirdsRetrievedEvent
+  | BirdQuestionGeneratedEvent;
 
 export type SaysMovesEvent = {
   type: "SAYS";
@@ -121,4 +125,9 @@ export type BirdsRetrievedEvent = {
     speaker: Speaker;
     moves: Move[]
   };
+};
+
+export type BirdQuestionGeneratedEvent = {
+  type: "BIRD_QUESTION_GENERATED";
+  value: string;
 };

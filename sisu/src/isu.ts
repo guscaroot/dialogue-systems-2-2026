@@ -3,7 +3,7 @@ import { Settings, speechstate } from "speechstate";
 import { createBrowserInspector } from "@statelyai/inspect";
 import { KEY } from "./azure";
 import { DMContext, DMEvent, NextMovesEvent, Move } from "./types";
-import { getBird, nlg, nlu, nluLLM,  } from "./nlug"; // nluQdrant
+import { getBird, nlg, nlu, nluLLM, getBirdQuestion } from "./nlug"; // nluQdrant
 import { dme } from "./dme";
 import { initialIS } from "./is";
 import { bird }from "./birds-database"
@@ -29,24 +29,32 @@ const settings: Settings = {
 const dmMachine = setup({
   actors: {
     dme: dme,
-    /*nluQdrant: fromPromise<Move[], string>(async ({input}) => {
-      return await nluQdrant(input)
-    },),*/
     nluLLM: fromPromise<Move[], string>(async ({input}) => {
       return await nluLLM(input)
     },),
     getBird: fromPromise<bird[], string>(async ({input}) => {
       return await getBird(input)
     },),
+    getBirdQuestion: fromPromise<string, bird[]>(async ({input}) => {
+      return await getBirdQuestion(input)
+    },),
   },
   actions: {
-    speak_next_moves: ({ context, event }) =>
+    speak_next_moves: ({ context, event }) => {
+      const moves = (event as NextMovesEvent).value;
+
+  console.log("[SPEAK] Received next moves:", moves);
+
+  const utterance = nlg(moves);
+
+  console.log("[SPEAK] Final utterance:", utterance);
       context.ssRef.send({
         type: "SPEAK",
         value: {
           utterance: nlg((event as NextMovesEvent).value),
         },
-      }),
+      })
+    },
     listen: ({ context }) =>
       context.ssRef.send({
         type: "LISTEN",
@@ -61,6 +69,7 @@ const dmMachine = setup({
     return {
       ssRef: spawn(speechstate, { input: settings }),
       is: initialIS(),
+      totalDescription: [],
     };
   },
   id: "DM",
@@ -110,12 +119,10 @@ const dmMachine = setup({
                     ({ event }) => console.log("[ASR] RECOGNISED", event.value[0].utterance),
                     assign(({ event }) => ({
                     lastUserUtterance: event.value[0].utterance,
-                    /*lastUserMoves: nlu(event.value[0].utterance),*/
                     })),
                   ]
                 },
                 ASR_NOINPUT: {
-                  // TODO
                   actions: [
                     () => console.log("[ASR] NO INPUT"),
                     assign({
@@ -126,29 +133,6 @@ const dmMachine = setup({
                 },
               },
             },
-            /*ProcessingNLU: {
-              invoke: {
-                src: "nluQdrant",
-                input: ({ context }) => context.lastUserUtterance!,
-                onDone: {
-                  target: "Idle",
-                  actions: [
-                    () => console.log("[NLU] Complete"),
-                    assign(({ event }) => ({
-                      lastUserMoves: event.output,
-                      lastUserUtterance: undefined,
-                    })),
-                    sendTo("dmeID", ({ event }) => ({
-                      type: "SAYS",
-                      value: {
-                        speaker: "usr",
-                        moves: event.output,
-                      },
-                    })),
-                  ]
-                }
-              }
-            },*/
             ProcessingNLU: {
               invoke: {
                 src: "nluLLM",
@@ -162,8 +146,12 @@ const dmMachine = setup({
                   target: "GettingBird",
                   actions: [
                   () => console.log("[NLU] Starting bird recognition"),
-                  assign(({ event }) => ({
+                  assign(({ event, context }) => ({
                     lastUserMoves: event.output,
+                    totalDescription: [
+                      ...context.totalDescription,
+                      context.lastUserUtterance!
+                    ],
                   })),
                   ]
                 },
@@ -190,21 +178,64 @@ const dmMachine = setup({
             GettingBird: {
               invoke: {
                 src: "getBird",
-                input: ({ context }) => context.lastUserUtterance!,
+                input: ({ context }) => (context.totalDescription.length > 0
+                  ? context.totalDescription.join(". ") + ". "
+                  : "") + context.lastUserUtterance!,
+                onDone: [
+                  {
+                    guard: ({ event }) => event.output.length > 1,
+                    target: "GeneratingBirdQuestion",
+                    actions: [
+                      () => console.log("[NLU] Bird recognition complete"),
+                      assign(({ event }) => ({
+                        lastUserUtterance: undefined,
+                        retrievedBirds: event.output
+                      })),
+                      sendTo("dmeID", ({ event, context }) => ({
+                        type: "BIRDS_RETRIEVED",
+                        value: {
+                          birds: event.output,
+                          speaker: "usr",
+                          moves: context.lastUserMoves
+                        },
+                      })),
+                    ]
+                  },
+                  {
+                    target: "Idle",
+                    actions: [
+                      () => console.log("[NLU] Bird recognition complete"),
+                      assign(({ event }) => ({
+                        lastUserUtterance: undefined,
+                        retrievedBirds: event.output
+                      })),
+                      sendTo("dmeID", ({ event, context }) => ({
+                        type: "BIRDS_RETRIEVED",
+                        value: {
+                          birds: event.output,
+                          speaker: "usr",
+                          moves: context.lastUserMoves
+                        },
+                      })),
+                    ]
+                  },
+                ]
+              }
+            },
+            GeneratingBirdQuestion: {
+              invoke: {
+                src: "getBirdQuestion",
+                input: ({ context }) => context.retrievedBirds!,
                 onDone: {
                   target: "Idle",
                   actions: [
-                    () => console.log("[NLU] Bird recognition complete"),
-                    assign(() => ({
-                      lastUserUtterance: undefined,
+                    () => console.log("[MORE INFO NEEDED] Bird question generated"),
+                    assign(({ event }) => ({
+                      generatedBirdQuestion: event.output,
                     })),
-                    sendTo("dmeID", ({ event, context }) => ({
-                      type: "BIRDS_RETRIEVED",
-                      value: {
-                        birds: event.output,
-                        speaker: "usr",
-                        moves: context.lastUserMoves
-                      },
+                    sendTo("dmeID", ({ event }) => ({
+                      type: "BIRD_QUESTION_GENERATED",
+                      value: event.output,
                     })),
                   ]
                 }
