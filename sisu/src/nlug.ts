@@ -330,31 +330,35 @@ User utterance:
   return moves
 };
 
-
-export async function getBirdQuestion(birds: bird[]) : Promise<string> {
+export async function getBirdQuestion(birds: bird[], totalDescription:string[]) : Promise<string> {
   const birdDescriptions: string = birds.map(
     (bird) => `${bird.speciesname}: ${bird.description}`
   ).join('\n');
+  const userDescription = totalDescription.join('\n');
   const prompt:string = `
   You are a bird identification assistant.
+
   The following bird species are possible matches:
   ${birdDescriptions}
+
+  The following information has already been given by the user:
+  ${userDescription}
 
   Your task is to formulate the SINGLE MOST DISCRIMINATING question that will help distinguish between these candidates.
 
   Instructions:
-  1. Compare the candidates' characteristics, based only on the provided descriptions.
-  2. Identify a visible characteristic that best separates them (such as colour, size, markings, or shape).
-  3. Prefer characteristics that divide the candidates into distinct groups.
-  4. Ask about easily observable features such as plumage, head colour, beak shape, body size, or leg length.
-  5. Avoid questions about characteristics shared by all candidates.
-  6. Make the question short, clear, and easy for a non-expert to answer.
-  7. Do not ask about a characteristic that cannot reasonably be inferred from the available descriptions.
-  8. Do not name the bird species.
-  9. Use ONLY open-ended or multiple-choice questions.
-  10. NEVER ask yes/no questions.
-  11. For every question, explicitly ask the user to answer in a complete sentence describing what they observe, even when the question offers multiple-choice options. Never encourage one-word answers.
-  12. Return ONLY the question text, without JSON or explanations.
+  Compare the candidate species' characteristics, based only on the provided descriptions.
+  Consider the information already given by the user.
+  Identify a visible characteristic that is not already given and best separates the candidates (such as colour, size, markings, or shape).
+  Ask about easily observable features such as plumage, head colour, beak shape, body size, or leg length.
+  Avoid questions about characteristics shared by all candidates.
+  Make the question short, clear, and easy for a non-expert to answer.
+  Do not ask about a characteristic that cannot reasonably be inferred from the available descriptions.
+  Do not name the bird species.
+  Use ONLY open-ended or multiple-choice questions.
+  NEVER ask yes/no questions.
+  For every question, explicitly ask the user to answer in a complete sentence describing what they observe, even when the question offers multiple-choice options. Never encourage one-word answers.
+  Return ONLY the question text, without JSON or explanations.
 `;
 
   console.log("[MORE INFO NEEDED] Getting bird question");

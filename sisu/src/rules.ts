@@ -221,6 +221,12 @@ export const rules: Rules = {
         const question = action.content as Question;
         for (let proposition of is.shared.com) {
           if (resolves(proposition, question)) {
+            /*if (question.predicate === "bird_description"
+              && question.text
+              && is.retrievedBirds
+              && is.retrievedBirds.length > 1) {
+                return
+              }*/
             return () => ({
               ...is,
               private: {
@@ -269,6 +275,7 @@ export const rules: Rules = {
                     ...is.private.plan.slice(1),
                 ],
             },
+            // TO DO: how to keep the commitments??
             shared: {
               ...is.shared,
               com: is.shared.com.filter((p: Proposition) => {

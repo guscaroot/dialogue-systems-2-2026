@@ -2,7 +2,7 @@ import { createActor, setup, AnyMachineSnapshot, sendTo, assign, fromPromise } f
 import { Settings, speechstate } from "speechstate";
 import { createBrowserInspector } from "@statelyai/inspect";
 import { KEY } from "./azure";
-import { DMContext, DMEvent, NextMovesEvent, Move } from "./types";
+import { DMContext, DMEvent, NextMovesEvent, Move, InformationState } from "./types";
 import { getBird, nlg, nlu, nluLLM, getBirdQuestion } from "./nlug"; // nluQdrant
 import { dme } from "./dme";
 import { initialIS } from "./is";
@@ -35,8 +35,8 @@ const dmMachine = setup({
     getBird: fromPromise<bird[], string>(async ({input}) => {
       return await getBird(input)
     },),
-    getBirdQuestion: fromPromise<string, bird[]>(async ({input}) => {
-      return await getBirdQuestion(input)
+    getBirdQuestion: fromPromise<string, {birds: bird[], totalDescription: string[]}>(async ({input}) => {
+      return await getBirdQuestion(input.birds, input.totalDescription)
     },),
   },
   actions: {
@@ -225,7 +225,7 @@ const dmMachine = setup({
             GeneratingBirdQuestion: {
               invoke: {
                 src: "getBirdQuestion",
-                input: ({ context }) => context.retrievedBirds!,
+                input: ({ context }) => ({birds:context.retrievedBirds!,totalDescription: context.totalDescription}),
                 onDone: {
                   target: "Idle",
                   actions: [
