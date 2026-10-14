@@ -1,5 +1,5 @@
 import { SpeechStateExternalEvent } from "speechstate";
-import { bird } from "./birds-database"
+import { bird } from "./birds-db"
 
 type Individuals = Predicates;
 type Predicates = { [index: string]: string };

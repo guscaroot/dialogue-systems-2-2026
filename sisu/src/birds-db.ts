@@ -1,3 +1,24 @@
+#!/usr/bin/env node
+
+import { Command } from "commander";
+import { QdrantClient } from "@qdrant/js-client-rest";
+import { v4 as uuidv4 } from "uuid";
+import OpenAI from "openai";
+import { Move } from "./types";
+import { WHQ } from "./utils";
+
+
+const client = new QdrantClient({ host: "localhost", port: 6333 });
+
+const openai = new OpenAI({
+  baseURL: "http://localhost:11434/v1/",
+  apiKey: "ollama",
+  dangerouslyAllowBrowser: true,
+});
+
+const program = new Command();
+program.name("npx tsx src/main.ts").description("Qdrant CLI").version("1.0.0");
+
 export type distributionCat =
    | "northern europe" // Sweden, Norway, Finland, Denmark, Iceland and the Baltic countries
    | "non-northern europe" // All remaining European regions
@@ -12,17 +33,17 @@ export type distributionCat =
    | "australia and oceania" //Australia, New Zealand and Pacific islands
 
 export type habitatCat =
-| "forest" // Forest, woodland, coniferous forest, deciduous forest, mixed forest and forest edges
-| "shrubland" // Scrub, shrubland, thickets and shrubby vegetation
-| "grassland" // Grassland, meadows, pastures and open grassy areas
-| "agricultural land" // Farmland, cultivated fields, arable land and agricultural landscapes
-| "urban and suburban" // Gardens, parks, towns, cities and residential areas
-| "freshwater wetlands" // Marshes, swamps, reed beds, bogs and other freshwater wetland habitats
-| "freshwater bodies" // Lakes, ponds, rivers, streams and reservoirs 
-| "coastal and marine" // Seashores, beaches, estuaries, tidal flats, coastal waters and marine environments
-| "tundra and heathland" // Arctic tundra, heathland, moorland and similar open environments
-| "mountains and rocky habitats" // Mountains, cliffs, rocky slopes and other rocky environments
-| "sparsely vegetated terrain" // Bare sand, dunes, gravel flats and other areas with little vegetation, for inland areas only
+    | "forest" // Forest, woodland, coniferous forest, deciduous forest, mixed forest and forest edges
+    | "shrubland" // Scrub, shrubland, thickets and shrubby vegetation
+    | "grassland" // Grassland, meadows, pastures and open grassy areas
+    | "agricultural land" // Farmland, cultivated fields, arable land and agricultural landscapes
+    | "urban and suburban" // Gardens, parks, towns, cities and residential areas
+    | "freshwater wetlands" // Marshes, swamps, reed beds, bogs and other freshwater wetland habitats
+    | "freshwater bodies" // Lakes, ponds, rivers, streams and reservoirs 
+    | "coastal and marine" // Seashores, beaches, estuaries, tidal flats, coastal waters and marine environments
+    | "tundra and heathland" // Arctic tundra, heathland, moorland and similar open environments
+    | "mountains and rocky habitats" // Mountains, cliffs, rocky slopes and other rocky environments
+    | "sparsely vegetated terrain" // Bare sand, dunes, gravel flats and other areas with little vegetation, for inland areas only
 
 export type conservationStatusCat =
     | 'critically endangered'
@@ -142,4 +163,71 @@ const greatTit: bird = {
     description: "Usually 12.5–14 cm long. The male has a bluish-black crown, black neck, throat, bib and head, with prominent white cheeks and ear coverts. The breast is bright lemon-yellow, with a broad black stripe running down the middle from the bib to the vent. There is a dull white spot on the neck that turns greenish-yellow on the upper nape. The rest of the nape and back are green tinged with olive. The wing-coverts are green, while the rest of the wing is bluish-grey with a white wing-bar. The tail is bluish-grey with white outer tips. The male's plumage is typically bright, although coloration varies among subspecies."
 }
 
-export const birdsDB: bird[] = [eurasianBlueTit, houseSparrow, greyHeron]
+export const birdsDB: bird[] = [eurasianBlueTit, houseSparrow, greyHeron, greatTit]
+
+
+const embed = async (input: string) =>
+  openai.embeddings
+    .create({
+      model: "qwen3-embedding",
+      input: input,
+      dimensions: 384,
+    })
+    .then((result) => result.data[0].embedding);
+
+program
+  .command("createCollection")
+  .description("Create a collection")
+  .argument("<name>", "collection name")
+  .action(async (name) => {
+    await client.createCollection(name, {
+      vectors: { size: 384, distance: "Cosine" },
+    });
+    console.log(`Succesfully created collection: ${name}`);
+  });
+
+program
+  .command("addBirdData")
+  .description("add data to a collection")
+  .argument("<collection>", "collection name")
+  .action(async (collection) => {
+    const points = await Promise.all(
+      birdsDB.map(async (bird) => {
+        const embedding = await embed(bird.description);
+        return {
+          id: bird.id,
+          vector: embedding,
+          payload: { 
+            commonName: bird.commonName,
+            scientificName: bird.scientificName,
+            distribution: bird.distribution,
+            habitat: bird.habitat,
+            size: bird.size,
+            conservationStatus: bird.conservationStatus,
+            description: bird.description},
+        };
+      }),
+    );
+    await client.upsert(collection, { wait: true, points: points });
+    console.log(
+    `Succesfully added ${birdsDB.length} points into collection: ${collection}`,
+    );
+  });
+
+
+program
+  .command("queryCollection")
+  .description("Query the collection")
+  .argument("<collection>", "collection name")
+  .argument("<query>", "text of the query")
+  .action(async (collection, query) => {
+    const embedding = await embed(query);
+    const results = await client.query(collection, {
+      with_payload: true,
+      query: embedding,
+      limit: 1,
+    });
+    console.log(results.points);
+  });
+
+program.parse();

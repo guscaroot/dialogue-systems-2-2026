@@ -12,15 +12,36 @@ import {getBird} from "./nlug"
 export const initialIS = (): InformationState => {
   const predicates: { [index: string]: string } = {
     // Mapping from predicate to sort
-    user_location: "location",
+    bird_location: "location",
+    bird_environment: "environment",
     bird_description: "description",
     observed_bird: "bird",
   };
   const individuals: { [index: string]: string } = {
     // Mapping from individual to sort
-    sweden: "location",
-    //"blue crown": "description",
-    eurasianbluetit: "bird",
+    //eurasianbluetit: "bird",
+    "northern europe": "location",
+    "non-northern europe": "location",
+    "north africa": "location",
+    "sub-saharan africa": "location",
+    "middle-east and western asia": "location",
+    "central and south asia": "location",
+    "east asia": "location",
+    "southeast asia": "location",
+    "north america": "location",
+    "south america": "location",
+    "australia and oceania": "location",
+    "forest": "environment",
+    "shrubland": "environment",
+    "grassland": "environment",
+    "agricultural land": "environment",
+    "urban and suburban": "environment",
+    "freshwater wetlands": "environment",
+    "freshwater bodies": "environment",
+    "coastal and marine": "environment",
+    "tundra and heathland": "environment", 
+    "mountains and rocky habitats": "environment",
+    "sparsely vegetated terrain": "environment",
   };
   const openSorts = ["description"]
   return {
@@ -33,7 +54,8 @@ export const initialIS = (): InformationState => {
           type: "issue",
           content: WHQ("observed_bird"),
           plan: [
-            findout(WHQ("user_location")),
+            findout(WHQ("bird_location")),
+            findout(WHQ("bird_environment")),
             findout(WHQ("bird_description")),
             consultDB(WHQ("observed_bird")),
           ],
@@ -45,7 +67,7 @@ export const initialIS = (): InformationState => {
         if (objectsEqual(question, WHQ("observed_bird"))) {
         
           if (birds && birds.length === 1) {
-            const birdname = birds[0].speciesname.toLowerCase()
+            const birdname = birds[0].commonName.toLowerCase()
             return {
               type: "identified",
               proposition: { predicate: "observed_bird", argument: birdname }
@@ -76,7 +98,7 @@ export const initialIS = (): InformationState => {
           content: null,
         },
       ],
-      bel: [{ predicate: "favorite_food", argument: "pizza" }],
+      bel: [],
     },
     shared: { lu: undefined, qud: [], com: [] },
     totalDescription: [],
