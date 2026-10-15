@@ -451,6 +451,22 @@ console.log("[select_ask] Plan:", is.private.plan);
             const a = move.content;
             if (relevant(is.domain, a, topQUD)) {
               let proposition = combine(is.domain, topQUD, a);
+              if (typeof move.content === "object" &&
+                move.content.predicate === "bird_description" &&
+                is.totalDescription.length != 0) {
+                  const extendedProposition = {
+                    predicate: "bird_description",
+                    argument: is.totalDescription.join('. ') + ". " + proposition.argument
+                  }
+                  return () => ({
+                    ...is,
+                    shared: {
+                      ...is.shared,
+                      com: [extendedProposition, ...is.shared.com],
+                    },
+                    retrievedBirds: retrievedBirds
+                  });
+              }
               return () => ({
                 ...is,
                 shared: {

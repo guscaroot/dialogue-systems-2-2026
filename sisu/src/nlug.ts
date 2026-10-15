@@ -106,14 +106,15 @@ export function nlg(moves: Move[]): string {
   return utterance;
 }
 
-/** NLU mapping function can be replaced by statistical NLU
- */
 export function nlu(utterance: string): Move[] {
-  return nluMapping[utterance.toLowerCase()] || []; // here is returned the empty array in case not understanding
+  return nluMapping[utterance.toLowerCase()] || [];
 }
 
-export async function getBird(utterance: string): Promise<bird[]> {
-  console.log("[NLU] Query");
+export async function getBird(
+  utterance: string,
+  location: string,
+  environment: string): Promise<bird[]> {
+  console.log("[NLU] Getting bird query");
   const embedding = await openai.embeddings
     .create({
       model: "qwen3-embedding",
@@ -122,13 +123,28 @@ export async function getBird(utterance: string): Promise<bird[]> {
     })
     .then((result) => result.data[0].embedding);
   const points = (await client.query("birdsDBtest2", {
-    with_payload: true,
     query: embedding,
-    limit: 2,
+    filter: {
+      must: [
+        {
+          key: "distribution",
+          match: {
+            value: location,
+          },
+        },
+        {
+          key: "habitat",
+          match: {
+            value: environment, // TO DO use any: environment[] in case 2 answers given??
+          },
+        },
+      ],
+  },
+    with_payload: true,
+    limit: 10
   })).points;
   if (points.length === 0) {
-    console.log("[NLU] No result")
-    
+    console.log("[NLU] No bird retrieved")
   };
   const retrieved_birds : bird[] = points.map((item) => ({
     id: Number(item.id),
@@ -140,14 +156,12 @@ export async function getBird(utterance: string): Promise<bird[]> {
     conservationStatus: item.payload!.conservationStatus as conservationStatusCat,
     description: item.payload!.description as string,
   }));
-  const score = points[0].score
-  console.log("[NLU] Result:", retrieved_birds);
-  /*
-  if (score < 0.6) {
-    console.log(`[NLU] Result rejected, score ${score} < 0.6`);
-     }
-  console.log(`[NLU] Result accepted -> bird: ${retrieved_birds.commonName}`);
-  */
+  const birds_scores = points.map((item) => ({
+    bird: item.payload!.commonName,
+    score: item.score
+  }))
+  console.log("[NLU] Getting Bird result:")
+  console.table(birds_scores)
   return retrieved_birds
 }
 

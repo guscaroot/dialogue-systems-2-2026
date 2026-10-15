@@ -47,6 +47,22 @@ export const dme = setup({
         };
       }
     ),
+    sendBirdFilters: sendTo(
+      ({ context }) => context.parentRef,
+      ({ context }) => {
+        return {
+          type: "BIRD_FILTERS_UPDATED",
+          value: {
+            location: context.is.shared.com.find(
+              (com) => com.predicate === "bird_location"
+            )?.argument,
+            environment: context.is.shared.com.find(
+              (com) => com.predicate === "bird_environment"
+            )?.argument,
+          },
+        }
+      }
+    ),
     isu: assign(({ context }, params: { name: string }) => {
       let ruleName = params.name;
       let newIS = rules[ruleName](context)!(); // we assume that this is never called without a guard
@@ -158,7 +174,6 @@ export const dme = setup({
               target: "Integrate",
               actions: [
                 () => console.log("[DME] SAYS handler entered"),
-                (event) => console.log("[DME] Incoming SAYS event:", JSON.stringify(event, null, 2)),
                 {
                   type: "updateLatestMoves",
                 },
@@ -217,10 +232,14 @@ export const dme = setup({
             isuTransition("DowndateQUD", "integrate_sys_ask"),
             isuTransition("DowndateQUD", "integrate_usr_ask"),
             isuTransition("DowndateQUD", "integrate_retrieved_birds"),
-            isuTransition("DowndateQUD", "integrate_answer"),
+            isuTransition("SendBirdFilters", "integrate_answer"),
             isuTransition("DowndateQUD", "integrate_greet"),
             { target: "DowndateQUD" },
           ],
+        },
+        SendBirdFilters: {
+          entry: { type: "sendBirdFilters" },
+          always: { target: "DowndateQUD" },
         },
         DowndateQUD: {
           always: [

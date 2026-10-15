@@ -96,12 +96,15 @@ export interface TotalInformationState {
   retrievedBirds?: bird[];
   totalDescription: string[];
   generatedBirdQuestion?: string;
+  birdLocation?: string,
+  birdEnvironment?: string,
 }
 
 export type DMEvent =
   | { type: "CLICK" }
   | SpeechStateExternalEvent
-  | NextMovesEvent;
+  | NextMovesEvent
+  | BirdFiltersEvent
 
 export type DMEEvent = 
   | SaysMovesEvent
@@ -130,4 +133,12 @@ export type BirdsRetrievedEvent = {
 export type BirdQuestionGeneratedEvent = {
   type: "BIRD_QUESTION_GENERATED";
   value: string;
+};
+
+export type BirdFiltersEvent = {
+  type: "BIRD_FILTERS_UPDATED";
+  value: {
+    location?: string;
+    environment?: string;
+  };
 };

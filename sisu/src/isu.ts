@@ -6,7 +6,7 @@ import { DMContext, DMEvent, NextMovesEvent, Move, InformationState } from "./ty
 import { getBird, nlg, nlu, nluLLM, getBirdQuestion } from "./nlug"; // nluQdrant
 import { dme } from "./dme";
 import { initialIS } from "./is";
-import { bird }from "./birds-database"
+import { bird } from "./birds-db";
 
 const {inspect} = createBrowserInspector();
 
@@ -32,10 +32,12 @@ const dmMachine = setup({
     nluLLM: fromPromise<Move[], string>(async ({input}) => {
       return await nluLLM(input)
     },),
-    getBird: fromPromise<bird[], string>(async ({input}) => {
-      return await getBird(input)
+    getBird:
+    fromPromise<bird[],{utt:string, loc: string, env: string}>(async ({input}) => {
+      return await getBird(input.utt, input.loc, input.env)
     },),
-    getBirdQuestion: fromPromise<string, {birds: bird[], totalDescription: string[]}>(async ({input}) => {
+    getBirdQuestion:
+    fromPromise<string,{birds: bird[], totalDescription: string[]}>(async ({input}) => {
       return await getBirdQuestion(input.birds, input.totalDescription)
     },),
   },
@@ -86,6 +88,17 @@ const dmMachine = setup({
     },
     Main: {
       type: "parallel",
+      on: {
+        BIRD_FILTERS_UPDATED: {
+          actions: assign(({ context, event }) => {
+            console.log("[DM] Bird filters updated:", event.value);
+            return {
+              birdLocation: event.value.location ?? context.birdLocation,
+              birdEnvironment: event.value.environment ?? context.birdEnvironment,
+            };
+          }),
+        },
+      },
       states: {
         Interpret: {
           initial: "Idle",
@@ -178,15 +191,19 @@ const dmMachine = setup({
             GettingBird: {
               invoke: {
                 src: "getBird",
-                input: ({ context }) => (context.totalDescription.length > 0
+                input: ({ context }) => 
+                  ({utt: (context.totalDescription.length > 0
                   ? context.totalDescription.join(". ") + ". "
                   : "") + context.lastUserUtterance!,
+                  loc: context.birdLocation!,
+                  env: context.birdEnvironment!
+                  }),
                 onDone: [
                   {
                     guard: ({ event }) => event.output.length > 1,
                     target: "GeneratingBirdQuestion",
                     actions: [
-                      () => console.log("[NLU] Bird recognition complete"),
+                      () => console.log("[NLU] Getting bird complete"),
                       assign(({ event }) => ({
                         lastUserUtterance: undefined,
                         retrievedBirds: event.output
@@ -204,7 +221,7 @@ const dmMachine = setup({
                   {
                     target: "Idle",
                     actions: [
-                      () => console.log("[NLU] Bird recognition complete"),
+                      () => console.log("[NLU] Gettig bird complete"),
                       assign(({ event }) => ({
                         lastUserUtterance: undefined,
                         retrievedBirds: event.output
@@ -225,7 +242,8 @@ const dmMachine = setup({
             GeneratingBirdQuestion: {
               invoke: {
                 src: "getBirdQuestion",
-                input: ({ context }) => ({birds:context.retrievedBirds!,totalDescription: context.totalDescription}),
+                input: ({ context }) =>
+                  ({birds:context.retrievedBirds!,totalDescription: context.totalDescription}),
                 onDone: {
                   target: "Idle",
                   actions: [
@@ -306,6 +324,7 @@ dmActor.subscribe((snapshot: AnyMachineSnapshot) => {
     JSON.stringify(snapshot.value, null, 2),
     snapshot.context.is
   );
+  console.dir(snapshot.context, { depth: null });
 });
 
 export function setupButton(element: HTMLElement) {
