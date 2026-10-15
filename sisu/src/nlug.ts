@@ -89,12 +89,14 @@ const nlgMapping: NLGMapping = [
 export function nlg(moves: Move[]): string {
   console.log("generating moves", moves);
   function generateMove(move: Move): string {
-    if (
-      move.type === "ask" &&
-      move.content.text
-    ) {
+    if ( move.type === "ask" && move.content.text ) {
       return move.content.text;
     }
+    if ( move.type === "answer" && typeof move.content === "object"
+      && move.content.predicate === "observed_bird" ) {
+        const utterance = `I think I've identified the species: ${move.content.argument}`
+        return utterance
+      }
     const mapping = nlgMapping.find((x) => objectsEqual(x[0], move));
     if (mapping) {
       return mapping[1];
