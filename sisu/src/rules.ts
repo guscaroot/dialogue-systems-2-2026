@@ -116,36 +116,39 @@ export const rules: Rules = {
   integrate_answer: ({ is }) => {
     const topQUD = is.shared.qud[0];
     if (topQUD) {
+      const plannedQuestions = is.private.plan.filter((action) =>
+        action.type === "findout" && action.content).map((action) => action.content);
+      let propositions = []
       for (const move of is.shared.lu!.moves) {
         if (move.type === "answer") {
           const a = move.content;
           if (relevant(is.domain, a, topQUD)) {
             let proposition = combine(is.domain, topQUD, a);
-            if (typeof move.content === "object" &&
-              move.content.predicate === "bird_description" &&
-              is.totalDescription.length != 0) {
-                const extendedProposition = {
-                  predicate: "bird_description",
-                  argument: is.totalDescription.join('. ') + ". " + proposition.argument
-                }
-                return () => ({
-                  ...is,
-                  shared: {
-                    ...is.shared,
-                    com: [extendedProposition, ...is.shared.com],
-                  },
-                });
-              }
-            return () => ({
+            /*return () => ({
               ...is,
               shared: {
                 ...is.shared,
                 com: [proposition, ...is.shared.com],
               },
-            });
+            });*/
+            propositions.push(proposition)
           }
-        }
+          else {
+            const q = plannedQuestions.find(q => relevant(is.domain, a, q!))
+            if (q) {
+              let prop = combine(is.domain, q, a);
+              propositions.push(prop)
+            }
+          }
+        }  
       }
+      return () => ({
+        ...is,
+        shared: {
+          ...is.shared,
+          com: [...propositions, ...is.shared.com],
+        },
+      });
     }
   },
 
