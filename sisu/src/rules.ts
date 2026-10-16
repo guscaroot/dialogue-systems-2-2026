@@ -124,13 +124,6 @@ export const rules: Rules = {
           const a = move.content;
           if (relevant(is.domain, a, topQUD)) {
             let proposition = combine(is.domain, topQUD, a);
-            /*return () => ({
-              ...is,
-              shared: {
-                ...is.shared,
-                com: [proposition, ...is.shared.com],
-              },
-            });*/
             propositions.push(proposition)
           }
           else {
@@ -447,34 +440,26 @@ console.log("[select_ask] Plan:", is.private.plan);
   /* new rule to integrate retrieved birds and answer*/
   integrate_retrieved_birds: ({ is, retrievedBirds }) => {
     const topQUD = is.shared.qud[0];
-    if (topQUD) {
-      if (retrievedBirds) {
-        for (const move of is.shared.lu!.moves) {
-          if (move.type === "answer") {
-            const a = move.content;
-            if (relevant(is.domain, a, topQUD)) {
-              let proposition = combine(is.domain, topQUD, a);
-              if (typeof move.content === "object" &&
-                move.content.predicate === "bird_description" &&
-                is.totalDescription.length != 0) {
-                  const extendedProposition = {
-                    predicate: "bird_description",
-                    argument: is.totalDescription.join('. ') + ". " + proposition.argument
-                  }
-                  return () => ({
-                    ...is,
-                    shared: {
-                      ...is.shared,
-                      com: [extendedProposition, ...is.shared.com],
-                    },
-                    retrievedBirds: retrievedBirds
-                  });
+    if (topQUD && retrievedBirds) {
+      for (const move of is.shared.lu!.moves) {
+        if (move.type === "answer") {
+          const a = move.content;
+          if (relevant(is.domain, a, topQUD)) {
+            let proposition = combine(is.domain, topQUD, a);
+            if (typeof move.content === "object" &&
+            move.content.predicate === "bird_description" &&
+            is.totalDescription.length != 0) {
+              const extendedProposition = {
+                predicate: "bird_description",
+                argument: proposition.argument !== is.totalDescription[is.totalDescription.length - 1]
+                ? (is.totalDescription.length > 0 ? is.totalDescription.join('. ') + '. ' : '') + proposition.argument
+                : is.totalDescription.join('. ') 
               }
               return () => ({
                 ...is,
                 shared: {
                   ...is.shared,
-                  com: [proposition, ...is.shared.com],
+                  com: [extendedProposition, ...is.shared.com],
                 },
                 retrievedBirds: retrievedBirds
               });
