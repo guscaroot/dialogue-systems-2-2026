@@ -72,7 +72,7 @@ const nlgMapping: NLGMapping = [
       type: "ask",
       content: WHQ("bird_environment")
     },
-    "What kind of environment are you in? A forest, a garden, a beach, or somewhere else?"
+    "What kind of environment is the bird in? A forest, a garden, a beach, or somewhere else?"
   ],
   [
     { 
@@ -80,10 +80,10 @@ const nlgMapping: NLGMapping = [
       content: WHQ("bird_description")
     },
     "Please describe the bird."],
-  [{ type: "answer", content: {predicate: "observed_bird", argument: "eurasian blue tit"}}, "I think it's a blue tit."],
+  /*[{ type: "answer", content: {predicate: "observed_bird", argument: "eurasian blue tit"}}, "I think it's a blue tit."],
   [{ type: "answer", content: {predicate: "observed_bird", argument: "grey heron"}}, "I think it's a grey heron."],
   [{ type: "answer", content: {predicate: "observed_bird", argument: "house sparrow"}}, "I think it's a house sparrow."],
-  [{ type: "answer", content: {predicate: "observed_bird", argument: "great tit"}}, "I think it's a great tit."],
+  [{ type: "answer", content: {predicate: "observed_bird", argument: "great tit"}}, "I think it's a great tit."],*/
 ];
 
 export function nlg(moves: Move[]): string {
@@ -94,7 +94,11 @@ export function nlg(moves: Move[]): string {
     }
     if ( move.type === "answer" && typeof move.content === "object"
       && move.content.predicate === "observed_bird" ) {
+        if (move.content.argument !== "unknown") {
         const utterance = `I think I've identified the species: ${move.content.argument}`
+        return utterance
+        }
+        const utterance = "I can't find this bird."
         return utterance
       }
     const mapping = nlgMapping.find((x) => objectsEqual(x[0], move));
@@ -115,18 +119,33 @@ export function nlu(utterance: string): Move[] {
 export async function getBird(
   utterance: string,
   location: string,
-  environment: string): Promise<bird[]> {
+  environment: string,
+  retrievedBirds?: bird[]): Promise<bird[]> {
   console.log("[NLU] Getting bird query");
-  const embedding = await openai.embeddings
-    .create({
-      model: "qwen3-embedding",
-      input: utterance,
-      dimensions: 384,
-    })
-    .then((result) => result.data[0].embedding);
-  const points = (await client.query("birdsDBtest2", {
-    query: embedding,
-    filter: {
+  let filter;
+  if (retrievedBirds) {
+    const retrieved_ids = retrievedBirds.map(bird => bird.id)
+    filter = {
+      must: [
+        {
+          has_id: retrieved_ids
+        },
+        {
+          key: "distribution",
+          match: {
+            value: location,
+          },
+        },
+        {
+          key: "habitat",
+          match: {
+            value: environment, // TO DO use any: environment[] in case 2 answers given??
+          },
+        },
+      ],
+    }
+  } else {
+    filter = {
       must: [
         {
           key: "distribution",
@@ -141,7 +160,18 @@ export async function getBird(
           },
         },
       ],
-  },
+    }
+  }
+  const embedding = await openai.embeddings
+    .create({
+      model: "qwen3-embedding",
+      input: utterance,
+      dimensions: 384,
+    })
+    .then((result) => result.data[0].embedding);
+  const points = (await client.query("birdsDBtest2", {
+    query: embedding,
+    filter: filter,
     with_payload: true,
     limit: 10
   })).points;

@@ -33,8 +33,8 @@ const dmMachine = setup({
       return await nluLLM(input)
     },),
     getBird:
-    fromPromise<bird[],{utt:string, loc: string, env: string}>(async ({input}) => {
-      return await getBird(input.utt, input.loc, input.env)
+    fromPromise<bird[],{utt:string, loc: string, env: string, birds?: bird[]}>(async ({input}) => {
+      return await getBird(input.utt, input.loc, input.env, input.birds)
     },),
     getBirdQuestion:
     fromPromise<string,{birds: bird[], totalDescription: string[]}>(async ({input}) => {
@@ -44,12 +44,9 @@ const dmMachine = setup({
   actions: {
     speak_next_moves: ({ context, event }) => {
       const moves = (event as NextMovesEvent).value;
-
-  console.log("[SPEAK] Received next moves:", moves);
-
-  const utterance = nlg(moves);
-
-  console.log("[SPEAK] Final utterance:", utterance);
+      console.log("[SPEAK] Received next moves:", moves);
+      const utterance = nlg(moves);
+      console.log("[SPEAK] Final utterance:", utterance);
       context.ssRef.send({
         type: "SPEAK",
         value: {
@@ -196,7 +193,8 @@ const dmMachine = setup({
                   ? context.totalDescription.join(". ") + ". "
                   : "") + context.lastUserUtterance!,
                   loc: context.birdLocation!,
-                  env: context.birdEnvironment!
+                  env: context.birdEnvironment!,
+                  birds: context.retrievedBirds
                   }),
                 onDone: [
                   {

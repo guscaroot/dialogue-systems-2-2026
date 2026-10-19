@@ -3,7 +3,7 @@ import { speechstate } from "speechstate";
 import { createBrowserInspector } from "@statelyai/inspect";
 // import { KEY } from "../azure";
 
-const inspector = createBrowserInspector();
+const {inspect} = createBrowserInspector();
 
 const azureCredentials = {
   endpoint:
@@ -144,7 +144,7 @@ const dmMachine = setup({
 });
 
 export const dmActor = createActor(dmMachine, {
-  inspect: inspector.inspect,
+  inspect,
 }).start();
 
 let is = dmActor.getSnapshot().context.is;

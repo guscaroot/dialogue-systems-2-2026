@@ -291,34 +291,32 @@ console.log(
   );
   };
 
-  describe("system answer from beliefs", () => {
-    runTest([
-      { speaker: "sys", message: "Hello! You can ask me anything!" },
-      { speaker: "usr", message: "What's your favorite food?" },
-      { speaker: "sys", message: "Pizza." },
-    ]);
-  });
-
 
   describe("bird observation - blue tit", () => {
     runTest([
-      { speaker: "sys", message: "Hello! You can ask me anything!" },
+      { speaker: "sys", message: "Hello and welcome to BirdyTalk! How can I help you?" },
       { speaker: "usr", message: "What is this bird?" },
-      { speaker: "sys", message: "Where are you?" },
+      { speaker: "sys", message: "Where are you birdwatching today?" },
       { speaker: "usr", message: "Sweden" },
-      { speaker: "sys", message: "What do you see?" },
+      { speaker: "sys", message: "What kind of environment are you in? A forest, a garden, a beach, or somewhere else?" },
+      { speaker: "usr", message: "Some park" },
+      { speaker: "sys", message: "Please describe the bird." },
       { speaker: "usr", message: "I see a small bird with a blue crown" },
-      { speaker: "sys", message: "I think it's a blue tit." },
+      { speaker: "sys", message: "What is the color underneath the breast?" },
+      { speaker: "usr", message: "it's yellow underneath the breast" },
+      { speaker: "sys", message: "I think I've identified the species: eurasian blue tit." },
     ]);
   });
 
   describe("bird observation - grey heron", () => {
     runTest([
-      { speaker: "sys", message: "Hello! You can ask me anything!" },
+      { speaker: "sys", message: "Hello and welcome to BirdyTalk! How can I help you?" },
       { speaker: "usr", message: "I want help to identify some bird" },
-      { speaker: "sys", message: "Where are you?" },
+      { speaker: "sys", message: "Where are you birdwatching today?" },
       { speaker: "usr", message: "I'm in Sweden" },
-      { speaker: "sys", message: "What do you see?" },
+      { speaker: "sys", message: "What kind of environment are you in? A forest, a garden, a beach, or somewhere else?" },
+      { speaker: "usr", message: "I'm near a lake" },
+      { speaker: "sys", message: "Please describe the bird." },
       { speaker: "usr", message: "It's a big bird with a long neck and long legs, and it is white grey" },
       { speaker: "sys", message: "I think it's a grey heron." },
     ]);
@@ -326,9 +324,9 @@ console.log(
 
   describe("bird observation - house sparrow", () => {
     runTest([
-      { speaker: "sys", message: "Hello! You can ask me anything!" },
+      { speaker: "sys", message: "Hello and welcome to BirdyTalk! How can I help you?!" },
       { speaker: "usr", message: "Please assist me in identifying a bird" },
-      { speaker: "sys", message: "Where are you?" },
+      { speaker: "sys", message: "Where are you birdwatching today?" },
       { speaker: "usr", message: "I'm in Sweden" },
       { speaker: "sys", message: "What do you see?" },
       { speaker: "usr", message: "The bird is quite small and brown, reddish on the head" },

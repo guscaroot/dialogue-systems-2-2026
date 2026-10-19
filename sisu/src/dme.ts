@@ -216,11 +216,10 @@ export const dme = setup({
         },
         IntegrateBirdQuestion : {
           entry: ({ context }) => {
-    console.log(
-      "[DME] IntegrateBirdQuestion entered",
-      context.generatedBirdQuestion
-    );
-  },
+            console.log("[DME] IntegrateBirdQuestion entered",
+            context.generatedBirdQuestion
+            );
+          },
           always: [
             isuTransition("Integrate", "integrate_bird_question"),
             { target: "Integrate" },
