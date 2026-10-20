@@ -94,7 +94,7 @@ export const dme = setup({
         retrievedBirds: event.value.birds,
       };
     }),
-    storeDescription: assign(({ context, event }) => {
+    /*storeDescription: assign(({ context, event }) => {
       if (event.type !== "BIRDS_RETRIEVED") {
         return {};
       }
@@ -117,7 +117,7 @@ export const dme = setup({
         };
       }
       return {};
-    }),
+    }),*/
     storeBirdQuestion: assign(({ event }) => {
       if (event.type !== "BIRD_QUESTION_GENERATED") {
         return {};
@@ -186,7 +186,7 @@ export const dme = setup({
                 target: "AwaitBirdQuestion",
                 actions: [
                   { type: "storeBirdRetrieval" },
-                  { type: "storeDescription" },
+                  //{ type: "storeDescription" },
                   { type: "updateLatestMoves" },
                   { type: "isu", params: { name: "get_latest_move" } },
                 ],
@@ -195,7 +195,7 @@ export const dme = setup({
                 target: "Integrate",
                 actions: [
                   { type: "storeBirdRetrieval" },
-                  { type: "storeDescription" },
+                  //{ type: "storeDescription" },
                   {
                     type: "updateLatestMoves",
                   },

@@ -271,16 +271,6 @@ export const rules: Rules = {
                     ...is.private.plan.slice(1),
                 ],
             },
-            // TO DO: how to keep the commitments??
-            shared: {
-              ...is.shared,
-              com: is.shared.com.filter((p: Proposition) => {
-                if (p.predicate === 'bird_description') {
-                  return false
-                }
-                return true;
-              })
-            },
             generatedBirdQuestion: undefined
           });
         }
@@ -446,24 +436,14 @@ console.log("[select_ask] Plan:", is.private.plan);
           const a = move.content;
           if (relevant(is.domain, a, topQUD)) {
             let proposition = combine(is.domain, topQUD, a);
-            if (typeof move.content === "object" &&
-            move.content.predicate === "bird_description" &&
-            is.totalDescription.length != 0) {
-              const extendedProposition = {
-                predicate: "bird_description",
-                argument: proposition.argument !== is.totalDescription[is.totalDescription.length - 1]
-                ? (is.totalDescription.length > 0 ? is.totalDescription.join('. ') + '. ' : '') + proposition.argument
-                : is.totalDescription.join('. ') 
-              }
-              return () => ({
-                ...is,
-                shared: {
-                  ...is.shared,
-                  com: [extendedProposition, ...is.shared.com],
-                },
-                retrievedBirds: retrievedBirds
-              });
-            }
+            return () => ({
+              ...is,
+              shared: {
+                ...is.shared,
+                com: [proposition, ...is.shared.com],
+              },
+              retrievedBirds: retrievedBirds
+            });
           }
         }
       }
@@ -475,7 +455,15 @@ console.log("[select_ask] Plan:", is.private.plan);
     if (generatedBirdQuestion) {
       return () => ({
         ...is,
-        generatedBirdQuestion: generatedBirdQuestion
+        generatedBirdQuestion: generatedBirdQuestion,
+        domain: {
+          ...is.domain,
+          predicates: {
+            ...is.domain.predicates,
+            [generatedBirdQuestion.predicate]: generatedBirdQuestion.predicate
+          },
+          openSorts: [...is.domain.openSorts, generatedBirdQuestion.predicate]
+        }
       });
     }
   },

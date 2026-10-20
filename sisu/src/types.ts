@@ -22,7 +22,7 @@ type consultDBResult =
   | { type: "no_match" }
 
 export type Database = {
-  consultDB: (q: Question, p: Proposition[], retrievedBirds: bird[], generatedBirdQuestion?: string) => consultDBResult | null;
+  consultDB: (q: Question, p: Proposition[], retrievedBirds: bird[], generatedBirdQuestion?: Question) => consultDBResult | null;
 };
 
 export type ShortAnswer = string;
@@ -72,14 +72,15 @@ export interface InformationState {
     com: Proposition[];
   };
   retrievedBirds?: bird[];
-  totalDescription: string[];
-  generatedBirdQuestion?: string;
+  totalDescription: Proposition[];
+  generatedBirdQuestion?: Question;
 }
 
 export interface DMContext extends TotalInformationState {
   ssRef: any;
   lastUserMoves?: Move[];
   lastUserUtterance?: string;
+  lastSysMove?: Move
 }
 
 export interface DMEContext extends TotalInformationState {
@@ -94,8 +95,8 @@ export interface TotalInformationState {
   /** information state */
   is: InformationState;
   retrievedBirds?: bird[];
-  totalDescription: string[];
-  generatedBirdQuestion?: string;
+  totalDescription: Proposition[];
+  generatedBirdQuestion?: Question;
   birdLocation?: string,
   birdEnvironment?: string,
 }
@@ -104,7 +105,7 @@ export type DMEvent =
   | { type: "CLICK" }
   | SpeechStateExternalEvent
   | NextMovesEvent
-  | BirdFiltersEvent
+  | BirdFiltersEvent;
 
 export type DMEEvent = 
   | SaysMovesEvent
@@ -132,7 +133,7 @@ export type BirdsRetrievedEvent = {
 
 export type BirdQuestionGeneratedEvent = {
   type: "BIRD_QUESTION_GENERATED";
-  value: string;
+  value: Question;
 };
 
 export type BirdFiltersEvent = {

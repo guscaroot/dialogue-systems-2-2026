@@ -1,4 +1,4 @@
-import { Move } from "./types";
+import { Move, Question, Proposition } from "./types";
 import { objectsEqual, WHQ } from "./utils";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import OpenAI from "openai";
@@ -117,11 +117,18 @@ export function nlu(utterance: string): Move[] {
 }
 
 export async function getBird(
-  utterance: string,
+  totalDescription: Proposition[],
   location: string,
   environment: string,
-  retrievedBirds?: bird[]): Promise<bird[]> {
+  retrievedBirds?: bird[],
+  ): Promise<bird[]> {
   console.log("[NLU] Getting bird query");
+  
+  const utterance = totalDescription.map(i => i.argument).join('. ')
+  if (!utterance) {
+    console.warn("[NLU] No bird description available for retrieval");
+    return [];
+  }
   let filter;
   if (retrievedBirds) {
     const retrieved_ids = retrievedBirds.map(bird => bird.id)
@@ -198,29 +205,30 @@ export async function getBird(
 }
 
 
-export async function nluLLM(utterance: string) : Promise<Move[]> {
+export async function nluLLM(utterance: string, predicates: string[], lastSysMove: Move) : Promise<Move[]> {
   const instructions: string = `
   Map the user utterance below into a JSON array of Move objects.
+  Consider the system move below to which the user utterance is replying, to better map the user utterance.
+  If the system makes an 'ask' move, the user utterance is certainly an 'answer' move with the same predicate.
   Return ONLY valid JSON.
   Use ONLY lowercase.
   Do not add anything else than the array. No explanation. No introduction. Start with [ and end with ].
   Use ONLY the following types and predicates, do not create new move label.
-  For questions, use only given predicates.
-  For answers, use only given predicates, and retrieve the string to fill in the argument of the proposition or the shortanswer.
-  If the answer corresponds to a bird description, use type 'answer' with predicate 'bird_description' and the user utterance as argument.
+  For 'ask' moves, use only given predicates.
+  For 'answer' moves, use only given predicates, and retrieve the string to fill in the argument of the proposition or the shortanswer.
   If the answer corresponds to a location, use type 'answer' with predicate 'bird_location' in case of a Proposition, and map the user answer to its corresponding allowed agument.
   If the answer corresponds to an environment, use type 'answer' with predicate 'bird_environment' in case of a Proposition, and map the user answer to its corresponding allowed agument.
-  
+  The user may over-answer and reply to 'bird_environment' together with 'bird_location'.
+  If the answer corresponds to a bird description, use type 'answer' with predicate 'bird_description' and the user utterance as argument.
+  If the answer corresponds to a specific bird's feature, use type 'answer' with the appropriate allowed predicate and the user utterance as argument.
+  If the answer corresponds to a specific bird's feature, and in case of a short answer, use the predicate and text from the system move to extend the user utterance into a complete sentence, and use this as argument.
+
   Allowed move types are exactly:
-  - "greet"
   - "answer"
   - "ask"
 
   Allowed predicates are exactly:
-  - "bird_location"
-  - "bird_environment"
-  - "bird_description"
-  - "observed_bird"
+  ${predicates.map(predicate => `- "${predicate}"`).join("\n")}
 
   Allowed arguments for predicate "bird_location" are exactly:
   - "northern europe" // to use only for Sweden, Norway, Finland, Denmark, Iceland and the Baltic countries
@@ -236,17 +244,17 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
   - "australia and oceania" // to use only for Australia, New Zealand and Pacific islands
 
   Allowed arguments for predicate "bird_environment" are exactly:
-  - "forest" // Forest, woodland, coniferous forest, deciduous forest, mixed forest and forest edges
-  - "shrubland" // Scrub, shrubland, thickets and shrubby vegetation
-  - "grassland" // Grassland, meadows, pastures and open grassy areas
-  - "agricultural land" // Farmland, cultivated fields, arable land and agricultural landscapes
-  - "urban and suburban" // Gardens, parks, towns, cities and residential areas
-  - "freshwater wetlands" // Marshes, swamps, reed beds, bogs and other freshwater wetland
-  - "freshwater bodies" // Lakes, ponds, rivers, streams and reservoirs 
-  - "coastal and marine" // Seashores, beaches, estuaries, tidal flats, coastal waters and marine environments
-  - "tundra and heathland" // Arctic tundra, heathland, moorland and similar open environments
-  - "mountains and rocky habitats" // Mountains, cliffs, rocky slopes and other rocky environments
-  - "sparsely vegetated terrain" // Bare sand, dunes, gravel flats and other areas with little vegetation, for inland areas only
+  - "forest" // to use for forest, woods, woodland, forest edges and similar
+  - "shrubland" // to use for scrub, shrubland, thickets, shrubby vegetation and similar
+  - "grassland" // to use for grassland, meadows, pastures, open grassy areas and similar
+  - "agricultural land" // to use for farmland, cultivated fields, arable land, agricultural landscapes and similar
+  - "urban and suburban" // to use for gardens, parks, towns, cities, residential areas and similar
+  - "freshwater wetlands" // to use for marshes, swamps, reed beds, bogs and other freshwater wetland
+  - "freshwater bodies" // to use for lakes, ponds, rivers, streams, reservoirs and other freshwater bodies
+  - "coastal and marine" // to use for seashores, beaches, estuaries, tidal flats, coastal waters and marine environments
+  - "tundra and heathland" // to use fo arctic tundra, heathland, moorland and similar open environments
+  - "mountains and rocky habitats" // to use for mountains, cliffs, rocky slopes and other rocky environments
+  - "sparsely vegetated terrain" // to use for bare sand, dunes, gravel flats and other areas with little vegetation, for inland areas only
 
   For an ask move:
   {
@@ -274,6 +282,7 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
 
   Examples:
   
+  System: { "type": "greet", "content": null }
   User: "what is this bird?"
   Output:
   [
@@ -285,7 +294,8 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
       }
     }
   ]
-
+  
+  System: { "type": "greet", "content": null }
   User: "help me identify a bird"
   Output:
   [
@@ -298,6 +308,7 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
     }
   ]
 
+  System: { "type": "greet", "content": null }
   User: "i see a bird and want to know which species it is"
   Output:
   [
@@ -310,6 +321,13 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
     }
   ]
 
+  System: {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "bird_location"
+      }
+  }
   User: "sweden"
   Output:
   [
@@ -319,6 +337,13 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
     }
   ]
 
+  System: {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "bird_location"
+      }
+  }
   User: "i'm in gothenburg"
   Output:
   [
@@ -331,6 +356,13 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
     }
   ]
 
+  System: {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "bird_location"
+      }
+  }
   User: "france"
   Output:
   [
@@ -340,6 +372,13 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
     }
   ]
   
+  System: {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "bird_environment"
+      }
+  }
   User: "i'm in the woods"
   Output:
   [
@@ -352,6 +391,13 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
     }
   ]
 
+  System: {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "bird_environment"
+      }
+  }
   User: "on the coast"
   Output:
   [
@@ -361,6 +407,13 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
     }
   ]
   
+  System: {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "bird_environment"
+      }
+  }
   User: "i'm in a forest close to a lake"
   Output:
   [
@@ -380,6 +433,39 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
     },
   ]
 
+  System: {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "bird_location"
+      }
+  }
+  User: "i'm in a forest in gothenburg"
+  Output:
+  [
+    {
+      "type": "answer",
+      "content": {
+        "predicate": "bird_location",
+        "argument":"northern europe"
+      }
+    },
+    {
+      "type": "answer",
+      "content": {
+        "predicate": "bird_environment",
+        "argument":"forest"
+      }
+    },
+  ]
+
+System: {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "bird_description"
+      }
+  }
   User: "i see a small bird with a blue crown"
   Output:
   [
@@ -392,6 +478,13 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
     }
   ]
   
+  System: {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "bird_description"
+      }
+  }
   User: "it's a long bird with long legs and a long beak"
   Output:
   [
@@ -403,16 +496,371 @@ export async function nluLLM(utterance: string) : Promise<Move[]> {
       }
     }
   ]
-    
+  
+  System: {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "bird_crown",
+        "text": "what is the colour of the bird's crown?"
+      }
+  }
+  User: "the crown is blue"
+  Output:
+  [
+    {
+      "type": "answer",
+      "content": {
+        "predicate": "bird_crown",
+        "argument": "the crown is blue"
+      }
+    }
+  ]
 
-User utterance:
+  System: {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "bird_crown",
+        "text": "what is the colour of the bird's crown?"
+      }
+  }
+  User: "it's blue"
+  Output:
+  [
+    {
+      "type": "answer",
+      "content": {
+        "predicate": "bird_crown",
+        "argument": "the crown is blue"
+      }
+    }
+  ]
+
+System move: ${JSON.stringify(lastSysMove)}
+User utterance: `
+
+const instruction: string =
 `
-  const prompt:string = instructions.concat('/n', utterance)
+Determine whether the user utterance is an appropriate response to the system move.
+Then map the user utterance into a JSON array of move objects.
+
+- If the system move is 'greet' and the user expresses an intention to identify a bird, return an 'ask' move with the predicate 'observed_bird'. Otherwise, return [].
+- Never generate an 'ask' move with any other predicate.
+- If the system move is 'ask', return an 'answer' move using the same predicate as in the system move, but only if the user provides a relevant answer.
+- If the user utterance is not a reasonably interpretable answer, return [].
+- Allow additional answers only when explicitly supported by the utterance, and only for the predicate 'bird_environment' that can appear as aditionnal information to a system question with predicate 'bird_location'.
+- Never generate 2 'ask' moves using the same predicate.
+- For short answers to bird-feature questions, use the system move's predicate and question text to expand the user's utterance into a complete, explicit sentence. Preserve the user's meaning without adding information.
+- NEVER guess or invent information.
+- Use only the allowed move types, predicates, arguments, and JSON structures.
+- Use ONLY lowercase.
+- Return only a valid JSON array.
+- Do not add anything else than the array. No explanation. No introduction. Start with [ and end with ].
+
+Allowed move types are exactly:
+  - "answer"
+  - "ask"
+
+Allowed predicate for ask moves is only:
+- "observed_bird"
+
+Allowed predicates for answer moves are exactly:
+${predicates
+  .filter(predicate => predicate !== "observed_bird")
+  .map(predicate => `- "${predicate}"`)
+  .join("\n")}
+
+Allowed arguments for predicate "bird_location" are exactly:
+- "northern europe" // to use only for Sweden, Norway, Finland, Denmark, Iceland and the Baltic countries
+- "non-northern europe" // to use only for all remaining European regions
+- "north africa" // to use only for Morocco to Egypt
+- "sub-saharan africa" // to use only for Africa south of the Sahara
+- "middle-east and western asia" // to use only for Anatolia, Caucasus, Levant, Cyprus, Iraq, Iran and Arabian Peninsula
+- "central and south asia" // to use only for Central Asian countries and the Indian subcontinent
+- "east asia" // to use only for China, Mongolia, Korea and Japan
+- "southeast asia" // to use only for Mainland and island Southeast Asia
+- "north america" // to use only for Greenland, Canada, the United States, Mexico, Central America and the Caribbean
+- "south america" // to use only for all countries and territories in South America, including the Falkland Islands
+- "australia and oceania" // to use only for Australia, New Zealand and Pacific islands
+
+Allowed arguments for predicate "bird_environment" are exactly:
+- "forest" // to use for forest, woods, woodland, forest edges and similar
+- "shrubland" // to use for scrub, shrubland, thickets, shrubby vegetation and similar
+- "grassland" // to use for grassland, meadows, pastures, open grassy areas and similar
+- "agricultural land" // to use for farmland, cultivated fields, arable land, agricultural landscapes and similar
+- "urban and suburban" // to use for gardens, parks, towns, cities, residential areas and similar
+- "freshwater wetlands" // to use for marshes, swamps, reed beds, bogs and other freshwater wetland
+- "freshwater bodies" // to use for lakes, ponds, rivers, streams, reservoirs and other freshwater bodies
+- "coastal and marine" // to use for seashores, beaches, estuaries, tidal flats, coastal waters and marine environments
+- "tundra and heathland" // to use fo arctic tundra, heathland, moorland and similar open environments
+- "mountains and rocky habitats" // to use for mountains, cliffs, rocky slopes and other rocky environments
+- "sparsely vegetated terrain" // to use for bare sand, dunes, gravel flats and other areas with little vegetation, for inland areas only
+
+Allowed JSON structures for move objects are exactly:
+- For an ask move:
+{
+  "type": "ask",
+  "content": {
+    "type": "whq",
+    "predicate": "observed_bird"
+  }
+}
+
+- For an answer:
+{
+  "type": "answer",
+  "content": {
+    "predicate": predicate,
+    "argument": string
+  }
+}
+
+
+Examples:
+
+Example A - a valid ask move
+System: { "type": "greet", "content": null }
+User: "what is this bird?"
+Output:
+[
+  {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": "observed_bird"
+    }
+  }
+]
+
+Example B - a valid ask move
+System: { "type": "greet", "content": null }
+User: "help me identify a bird"
+Output:
+[
+  {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": "observed_bird"
+    }
+  }
+]
+
+Example C - an unrelated question
+System: { "type": "greet", "content": null }
+User: "what is the weather today?"
+Output:
+[]
+
+Example D - a valid answer move
+System: {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": "bird_location"
+    }
+}
+User: "sweden"
+Output:
+[
+  {
+    "type": "answer",
+    "content": "content": {
+      "predicate": "bird_location",
+      "argument":"northern europe"
+    }
+  }
+]
+
+Example E - a valid answer move
+System: {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": "bird_location"
+    }
+}
+User: "i'm in france"
+Output:
+[
+  {
+    "type": "answer",
+    "content": "content": {
+      "predicate": "bird_location",
+      "argument":"non-northern europe"
+    }
+  }
+]
+
+Example F - a valid answer move
+System: {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": "bird_environment"
+    }
+}
+User: "i'm in the woods"
+Output:
+[
+  {
+    "type": "answer",
+    "content": {
+      "predicate": "bird_environment",
+      "argument":"forest"
+    }
+  }
+]
+
+Example G - a valid answer move
+System: {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": "bird_environment"
+    }
+}
+User: "on the coast"
+Output:
+[
+  {
+    "type": "answer",
+    "content": {
+      "predicate": "bird_environment",
+      "argument":"coastal and marine"
+    }
+  }
+]
+
+Example H - a valid answer move with valid additional information
+System: {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": "bird_location"
+    }
+}
+User: "i'm in a forest in gothenburg"
+Output:
+[
+  {
+    "type": "answer",
+    "content": {
+      "predicate": "bird_location",
+      "argument":"northern europe"
+    }
+  },
+  {
+    "type": "answer",
+    "content": {
+      "predicate": "bird_environment",
+      "argument":"forest"
+    }
+  },
+]
+
+Example I - a valid answer move with utterance as argument
+System: {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": "bird_description"
+    }
+}
+User: "i see a small bird with a blue crown"
+Output:
+[
+  {
+    "type": "answer",
+    "content": {
+      "predicate": "bird_description",
+      "argument": "i see a small bird with a blue crown"
+    }
+  }
+]
+
+Example J - a valid answer move with utterance as argument
+System: {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": "bird_crown",
+      "text": "what is the colour of the bird's crown?"
+    }
+}
+User: "the crown is blue"
+Output:
+[
+  {
+    "type": "answer",
+    "content": {
+      "predicate": "bird_crown",
+      "argument": "the crown is blue"
+    }
+  }
+]
+
+Example K - a valid answer move with completed utterance as argument
+System: {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": "bird_crown",
+      "text": "what is the colour of the bird's crown?"
+    }
+}
+User: "it's blue"
+Output:
+[
+  {
+    "type": "answer",
+    "content": {
+      "predicate": "bird_crown",
+      "argument": "the bird has a blue crown"
+    }
+  }
+]
+
+Example L - an unrelated statement
+System:
+{
+  "type": "ask",
+  "content": {
+    "type": "whq",
+    "predicate": "bird_environment"
+  }
+}
+User: "the bird has a blue crown"
+Output: []
+
+Example M - uncertainty without an answer
+System:
+{
+  "type": "ask",
+  "content": {
+    "type": "whq",
+    "predicate": "bird_environment"
+  }
+}
+User: "i have no idea"
+Output: []
+
+Example N - an invalid ask move
+System: { "type": "greet", "content": null }
+User: "where are you?"
+Output: []
+
+System move: ${JSON.stringify(lastSysMove)}
+User utterance: `
+
+  const prompt:string = instruction.concat(utterance)
   console.log("[NLU] Query");
   const response = await openai.chat.completions
   .create({
         messages:[{ role:  "user" , content: prompt }],
         model:'llama3.1:latest',
+        //temperature: 0.5
      })
   .then((result) => result.choices[0].message.content)
   console.log("[NLU] Result:", response);
@@ -421,19 +869,22 @@ User utterance:
   return moves
 };
 
-export async function getBirdQuestion(birds: bird[], totalDescription:string[]) : Promise<string> {
-  const birdDescriptions: string = birds.map(
-    (bird) => `${bird.commonName}: ${bird.description}`
-  ).join('\n');
-  const userDescription = totalDescription.join('\n');
+export async function getBirdQuestion(birds: bird[], totalDescription: Proposition[]) : Promise<Question> {
+  const birdDescriptions: string = birds
+  .map(
+    (bird) => `- ${bird.commonName}: ${bird.description}`)
+  .join('\n');
+  const descriptionsList: string = totalDescription
+  .map(item => `- ${item.predicate}: ${item.argument}`)
+  .join("\n")
   const prompt:string = `
   You are a bird identification assistant.
 
   The following bird species are possible matches:
   ${birdDescriptions}
 
-  The following information has already been given by the user:
-  ${userDescription}
+  The following information has already been given by the user. Each bullet point represents a predicate-argument pair, where the predicate identifies the type of information and the argument is the corresponding value:
+  ${descriptionsList}
 
   Your task is to formulate the SINGLE MOST DISCRIMINATING question that will help distinguish between these candidates.
 
@@ -441,6 +892,9 @@ export async function getBirdQuestion(birds: bird[], totalDescription:string[]) 
   Compare the candidate species' characteristics, based only on the provided descriptions.
   Consider the information already given by the user.
   Identify a visible characteristic that is not already given and best separates the candidates (such as colour, size, markings, or shape).
+  Never use an already used predicate.
+  Never ask about a characteristic whose predicate already appears in the information provided by the user.
+  Treat predicates as identifiers of characteristics. For example, if "bird_colour" has already been provided, do not ask about colour again, even if the question uses different wording.
   Ask about easily observable features such as plumage, head colour, beak shape, body size, or leg length.
   Avoid questions about characteristics shared by all candidates.
   Make the question short, clear, and easy for a non-expert to answer.
@@ -448,8 +902,15 @@ export async function getBirdQuestion(birds: bird[], totalDescription:string[]) 
   Do not name the bird species.
   Use ONLY open-ended or multiple-choice questions.
   NEVER ask yes/no questions.
-  For every question, explicitly ask the user to answer in a complete sentence describing what they observe, even when the question offers multiple-choice options. Never encourage one-word answers.
-  Return ONLY the question text, without JSON or explanations.
+  Return ONLY the question as a JSON object:
+  {
+    "type": "whq",
+    "predicate": predicate,
+    "text": string
+  }
+  where "type" has only "whq" as allowed value
+  where predicate is inferred and represents the question content, for instance "bird_colour", "bird_crown", "bird_beak", "bird_legs", "bird_shape"...
+  and where string is the question itself
 `;
 
   console.log("[MORE INFO NEEDED] Getting bird question");
@@ -457,9 +918,10 @@ export async function getBirdQuestion(birds: bird[], totalDescription:string[]) 
   .create({
         messages:[{ role:  "user" , content: prompt }],
         model:'llama3.1:latest',
-        temperature: 0.2 // fore more predictable / consistent responses
+        temperature: 0.2 // for more predictable / consistent responses
      })
-  .then((result) => result.choices[0].message.content?.trim() ?? "")
+  .then((result) => result.choices[0].message.content)
   console.log("[MORE INFO NEEDED] additional question to ask:", response);
-  return response
+  const question: Question = JSON.parse(response!)
+  return question
 };

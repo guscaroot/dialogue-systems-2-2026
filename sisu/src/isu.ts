@@ -2,7 +2,7 @@ import { createActor, setup, AnyMachineSnapshot, sendTo, assign, fromPromise } f
 import { Settings, speechstate } from "speechstate";
 import { createBrowserInspector } from "@statelyai/inspect";
 import { KEY } from "./azure";
-import { DMContext, DMEvent, NextMovesEvent, Move, InformationState } from "./types";
+import { DMContext, DMEvent, NextMovesEvent, Move, Question, Proposition } from "./types";
 import { getBird, nlg, nlu, nluLLM, getBirdQuestion } from "./nlug"; // nluQdrant
 import { dme } from "./dme";
 import { initialIS } from "./is";
@@ -29,15 +29,15 @@ const settings: Settings = {
 const dmMachine = setup({
   actors: {
     dme: dme,
-    nluLLM: fromPromise<Move[], string>(async ({input}) => {
-      return await nluLLM(input)
+    nluLLM: fromPromise<Move[], {utt:string, predicates: string[], lastSysMove: Move}>(async ({input}) => {
+      return await nluLLM(input.utt, input.predicates, input.lastSysMove)
     },),
     getBird:
-    fromPromise<bird[],{utt:string, loc: string, env: string, birds?: bird[]}>(async ({input}) => {
-      return await getBird(input.utt, input.loc, input.env, input.birds)
+    fromPromise<bird[],{totalDescription: Proposition[], loc: string, env: string, birds?: bird[]}>(async ({input}) => {
+      return await getBird(input.totalDescription, input.loc, input.env, input.birds)
     },),
     getBirdQuestion:
-    fromPromise<string,{birds: bird[], totalDescription: string[]}>(async ({input}) => {
+    fromPromise<Question,{birds: bird[], totalDescription: Proposition[]}>(async ({input}) => {
       return await getBirdQuestion(input.birds, input.totalDescription)
     },),
   },
@@ -146,23 +146,56 @@ const dmMachine = setup({
             ProcessingNLU: {
               invoke: {
                 src: "nluLLM",
-                input: ({ context }) => context.lastUserUtterance!,
+                input: ({ context }) => ({
+                  utt: context.lastUserUtterance!,
+                  predicates: Object.keys(context.is.domain.predicates),
+                  lastSysMove: context.lastSysMove!
+                }),
                 onDone: [
                 {
                   guard: ({ event }) => event.output.some(
                     i => i.type === 'answer' && 
                     typeof i.content === 'object' && 
-                    i.content?.predicate === 'bird_description'),
+                    i.content !== null &&
+                    "argument" in i.content &&
+                    "predicate" in i.content &&
+                    i.content.predicate !== "bird_location" &&
+                    i.content.predicate !== "bird_environment"
+                  ),
                   target: "GettingBird",
                   actions: [
                   () => console.log("[NLU] Starting bird recognition"),
-                  assign(({ event, context }) => ({
-                    lastUserMoves: event.output,
-                    totalDescription: [
-                      ...context.totalDescription,
-                      context.lastUserUtterance!
-                    ],
-                  })),
+                  assign(({ event, context }) => {
+                    const descriptionMove = event.output.find(
+                    i => i.type === "answer" &&
+                    typeof i.content === "object" &&
+                    i.content !== null &&
+                    "argument" in i.content &&
+                    "predicate" in i.content &&
+                    i.content.predicate !== "bird_location" &&
+                    i.content.predicate !== "bird_environment"
+                    );
+                    if (
+                      !descriptionMove ||
+                      descriptionMove.type !== "answer" ||
+                      typeof descriptionMove.content !== "object" ||
+                      descriptionMove.content === null ||
+                      !("argument" in descriptionMove.content) ||
+                      !("predicate" in descriptionMove.content)
+                    ) {
+                      return {};
+                    }
+                    return {
+                      lastUserMoves: event.output,
+                      totalDescription: [
+                        ...context.totalDescription,
+                        {
+                          predicate: descriptionMove.content.predicate,
+                          argument: descriptionMove.content.argument,
+                        },
+                      ],
+                    };
+                  }),
                   ]
                 },
                 {
@@ -188,10 +221,8 @@ const dmMachine = setup({
             GettingBird: {
               invoke: {
                 src: "getBird",
-                input: ({ context }) => 
-                  ({utt: (context.totalDescription.length > 0
-                  ? context.totalDescription.join(". ") + ". "
-                  : "") + context.lastUserUtterance!,
+                input: ({ context }) => ({
+                  totalDescription: context.totalDescription,
                   loc: context.birdLocation!,
                   env: context.birdEnvironment!,
                   birds: context.retrievedBirds
@@ -240,14 +271,27 @@ const dmMachine = setup({
             GeneratingBirdQuestion: {
               invoke: {
                 src: "getBirdQuestion",
-                input: ({ context }) =>
-                  ({birds:context.retrievedBirds!,totalDescription: context.totalDescription}),
+                input: ({ context }) => ({
+                  birds: context.retrievedBirds!,
+                  totalDescription : context.totalDescription!
+                }),
                 onDone: {
                   target: "Idle",
                   actions: [
                     () => console.log("[MORE INFO NEEDED] Bird question generated"),
-                    assign(({ event }) => ({
+                    assign(({ event, context }) => ({
                       generatedBirdQuestion: event.output,
+                      is: {
+                        ...context.is,
+                        domain: {
+                          ...context.is.domain,
+                          predicates: {
+                            ...context.is.domain.predicates,
+                            [event.output.predicate]: event.output.predicate
+                          },
+                          openSorts: [...context.is.domain.openSorts, event.output.predicate]
+                        }
+                      },
                     })),
                     sendTo("dmeID", ({ event }) => ({
                       type: "BIRD_QUESTION_GENERATED",
@@ -266,13 +310,16 @@ const dmMachine = setup({
               on: {
                 NEXT_MOVES: {
                   target: "Speaking",
-                  actions: sendTo("dmeID", ({ event }) => ({
-                    type: "SAYS",
-                    value: {
-                      speaker: "sys",
-                      moves: event.value,
-                    },
-                  })),
+                  actions: [
+                    sendTo("dmeID", ({ event }) => ({
+                      type: "SAYS",
+                      value: {
+                        speaker: "sys",
+                        moves: event.value,
+                      },
+                    })),
+                    assign(({event}) => ({lastSysMove: event.value[0]}))
+                  ]
                 },
               },
             },

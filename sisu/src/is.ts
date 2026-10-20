@@ -63,7 +63,7 @@ export const initialIS = (): InformationState => {
       ],
     },
     database: {
-      consultDB: (question, facts, birds, bird_question) => {
+      consultDB: (question, facts, birds, bird_question?) => {
         if (objectsEqual(question, WHQ("observed_bird"))) {
         
           if (birds && birds.length === 1) {
@@ -73,9 +73,9 @@ export const initialIS = (): InformationState => {
               proposition: { predicate: "observed_bird", argument: birdname }
             }
           }
-          if (birds && birds.length > 1) {
+          if (birds && birds.length > 1 && bird_question) {
             const new_plan: Action[] = [
-              findout(WHQ("bird_description", bird_question)),
+              findout(WHQ(bird_question.predicate, bird_question.text)),
               consultDB(WHQ("observed_bird")),
             ]
             return {
