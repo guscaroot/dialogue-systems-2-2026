@@ -2,11 +2,11 @@ import { createActor, setup, AnyMachineSnapshot, sendTo, assign, fromPromise } f
 import { Settings, speechstate } from "speechstate";
 import { createBrowserInspector } from "@statelyai/inspect";
 import { KEY } from "./azure";
-import { DMContext, DMEvent, NextMovesEvent, Move, Question, Proposition } from "./types";
+import { DMContext, DMEvent, NextMovesEvent, Move, Question, Proposition, bird } from "./types";
 import { getBird, nlg, nlu, nluLLM, getBirdQuestion } from "./nlug"; // nluQdrant
 import { dme } from "./dme";
 import { initialIS } from "./is";
-import { bird } from "./birds-db";
+import { displayBirdImage } from "./birds-data";
 
 const {inspect} = createBrowserInspector();
 
@@ -94,6 +94,12 @@ const dmMachine = setup({
               birdEnvironment: event.value.environment ?? context.birdEnvironment,
             };
           }),
+        },
+        BIRD_IDENTIFIED: {
+          actions: ({ event }) => {
+            console.log("[DM] Bird identified:", event.value.commonName);
+            displayBirdImage(event.value);
+          }
         },
       },
       states: {

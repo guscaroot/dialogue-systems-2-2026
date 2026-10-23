@@ -6,8 +6,6 @@ import {
   consultDB,
   getFactArgument,
 } from "./utils";
-import { bird, birdsDB } from "./birds-database";
-import {getBird} from "./nlug"
 
 export const initialIS = (): InformationState => {
   const predicates: { [index: string]: string } = {

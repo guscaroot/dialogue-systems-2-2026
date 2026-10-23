@@ -4,8 +4,7 @@ import { Command } from "commander";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { v4 as uuidv4 } from "uuid";
 import OpenAI from "openai";
-import { Move } from "./types";
-import { WHQ } from "./utils";
+import { bird } from "./types";
 
 
 const client = new QdrantClient({ host: "localhost", port: 6333 });
@@ -19,59 +18,7 @@ const openai = new OpenAI({
 const program = new Command();
 program.name("npx tsx src/main.ts").description("Qdrant CLI").version("1.0.0");
 
-export type distributionCat =
-  | "northern europe" // Sweden, Norway, Finland, Denmark, Iceland and the Baltic countries
-  | "non-northern europe" // All remaining European regions
-  | "north africa" // Morocco to Egypt
-  | "sub-saharan africa" // Africa south of the Sahara
-  | "middle-east and western asia" // Anatolia, Caucasus, Levant, Cyprus, Iraq, Iran and Arabian Peninsula
-  | "central and south asia" // Central Asian countries and the Indian subcontinent
-  | "east asia" // China, Mongolia, Korea and Japan
-  | "southeast asia" // Mainland and island Southeast Asia
-  | "north america" // Greenland, Canada, the United States, Mexico, Central America and the Caribbean
-  | "south america" // All countries and territories in South America, including the Falkland Islands
-  | "australia and oceania" //Australia, New Zealand and Pacific islands
-
-export type habitatCat =
-  | "forest" // Forest, woodland, coniferous forest, deciduous forest, mixed forest and forest edges
-  | "shrubland" // Scrub, shrubland, thickets and shrubby vegetation
-  | "grassland" // Grassland, meadows, pastures and open grassy areas
-  | "agricultural land" // Farmland, cultivated fields, arable land and agricultural landscapes
-  | "urban and suburban" // Gardens, parks, towns, cities and residential areas
-  | "freshwater wetlands" // Marshes, swamps, reed beds, bogs and other freshwater wetland habitats
-  | "freshwater bodies" // Lakes, ponds, rivers, streams and reservoirs 
-  | "coastal and marine" // Seashores, beaches, estuaries, tidal flats, coastal waters and marine environments
-  | "tundra and heathland" // Arctic tundra, heathland, moorland and similar open environments
-  | "mountains and rocky habitats" // Mountains, cliffs, rocky slopes and other rocky environments
-  | "sparsely vegetated terrain" // Bare sand, dunes, gravel flats and other areas with little vegetation, for inland areas only
-
-export type conservationStatusCat =
-  | 'critically endangered'
-  | 'endangered'
-  | 'vulnerable'
-  | 'near threatened'
-  | 'conservation dependent'
-  | 'least concern'
-
-export type sizeCat =
-  | 'XS' // sparrow, tit
-  | 'S' // blackbird, starling, dove
-  | 'M' // pigeon, crow, mallard, buzzard
-  | 'L' // heron, swan, stork
-
-export type bird = {
-  id: string,
-  commonName: string,
-  scientificName: string,
-  distribution: distributionCat[],
-  habitat: habitatCat[],
-  size: sizeCat,
-  conservationStatus: conservationStatusCat,
-  description: string,
-};
-
-
-const eurasianBlueTit: bird = {
+export const eurasianBlueTit: bird = {
   id: uuidv4(),
   commonName: "eurasian blue tit",
   scientificName: "cyanistes caeruleus",
@@ -410,7 +357,7 @@ const whiteWagtail:bird = {
   "description": "approximately 16.5–19 cm long. the head, throat, and upper breast are black, with a white forehead and sides of the face. the back is grey, and the underparts are white. the wings are black with white edges and a white wing-bar. the long tail is black with white outer feathers. the bill and legs are black."
 }
 
-const europeanGreenWoodpecker: bird = {
+export const europeanGreenWoodpecker: bird = {
   "id": uuidv4(),
   "commonName": "european green woodpecker",
   "scientificName": "picus viridis",
@@ -432,7 +379,7 @@ const europeanGreenWoodpecker: bird = {
 }
 
 const greyHeron: bird = {
-  id: 3,
+  id: uuidv4(),
   commonName: "grey heron",
   scientificName: "ardea cinerea",
   distribution: [

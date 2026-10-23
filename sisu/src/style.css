@@ -56,7 +56,14 @@ h1 {
 }
 
 .card {
-  padding: 2em;
+  position: absolute;
+  top: 20px;
+  left: 20px
+}
+
+.bird-card {
+  padding-top: 40px;
+  text-align: center;
 }
 
 .read-the-docs {
@@ -93,4 +100,13 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+#bird-image {
+  display: none;
+  width: 350px;
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 20px auto;
 }

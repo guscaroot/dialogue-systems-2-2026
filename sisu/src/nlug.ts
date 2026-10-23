@@ -1,8 +1,8 @@
-import { Move, Question, Proposition } from "./types";
+import { Move, Question, Proposition, bird,
+  distributionCat, habitatCat, conservationStatusCat, sizeCat } from "./types";
 import { objectsEqual, WHQ } from "./utils";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import OpenAI from "openai";
-import { bird, distributionCat, habitatCat, conservationStatusCat, sizeCat }from "./birds-db"
 
 const client = new QdrantClient({ host: "localhost", port: 6333 });
 
@@ -188,7 +188,7 @@ export async function getBird(
     query: embedding,
     filter: filter,
     with_payload: true,
-    limit: 10
+    limit: 1
   })).points;
   if (points.length === 0) {
     console.log("[NLU] No bird retrieved")

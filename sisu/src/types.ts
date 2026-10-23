@@ -1,5 +1,4 @@
 import { SpeechStateExternalEvent } from "speechstate";
-import { bird } from "./birds-db"
 
 type Individuals = Predicates;
 type Predicates = { [index: string]: string };
@@ -105,7 +104,8 @@ export type DMEvent =
   | { type: "CLICK" }
   | SpeechStateExternalEvent
   | NextMovesEvent
-  | BirdFiltersEvent;
+  | BirdFiltersEvent
+  | BirdIdentifiedEvent;
 
 export type DMEEvent = 
   | SaysMovesEvent
@@ -142,4 +142,60 @@ export type BirdFiltersEvent = {
     location?: string;
     environment?: string;
   };
+};
+
+export type BirdIdentifiedEvent = {
+  type: "BIRD_IDENTIFIED";
+  value: bird;
+};
+
+export type distributionCat =
+  | "northern europe" // Sweden, Norway, Finland, Denmark, Iceland and the Baltic countries
+  | "non-northern europe" // All remaining European regions
+  | "north africa" // Morocco to Egypt
+  | "sub-saharan africa" // Africa south of the Sahara
+  | "middle-east and western asia" // Anatolia, Caucasus, Levant, Cyprus, Iraq, Iran and Arabian Peninsula
+  | "central and south asia" // Central Asian countries and the Indian subcontinent
+  | "east asia" // China, Mongolia, Korea and Japan
+  | "southeast asia" // Mainland and island Southeast Asia
+  | "north america" // Greenland, Canada, the United States, Mexico, Central America and the Caribbean
+  | "south america" // All countries and territories in South America, including the Falkland Islands
+  | "australia and oceania" //Australia, New Zealand and Pacific islands
+
+export type habitatCat =
+  | "forest" // Forest, woodland, coniferous forest, deciduous forest, mixed forest and forest edges
+  | "shrubland" // Scrub, shrubland, thickets and shrubby vegetation
+  | "grassland" // Grassland, meadows, pastures and open grassy areas
+  | "agricultural land" // Farmland, cultivated fields, arable land and agricultural landscapes
+  | "urban and suburban" // Gardens, parks, towns, cities and residential areas
+  | "freshwater wetlands" // Marshes, swamps, reed beds, bogs and other freshwater wetland habitats
+  | "freshwater bodies" // Lakes, ponds, rivers, streams and reservoirs 
+  | "coastal and marine" // Seashores, beaches, estuaries, tidal flats, coastal waters and marine environments
+  | "tundra and heathland" // Arctic tundra, heathland, moorland and similar open environments
+  | "mountains and rocky habitats" // Mountains, cliffs, rocky slopes and other rocky environments
+  | "sparsely vegetated terrain" // Bare sand, dunes, gravel flats and other areas with little vegetation, for inland areas only
+
+export type conservationStatusCat =
+  | 'critically endangered'
+  | 'endangered'
+  | 'vulnerable'
+  | 'near threatened'
+  | 'conservation dependent'
+  | 'least concern'
+
+export type sizeCat =
+  | 'XS' // sparrow, tit
+  | 'S' // blackbird, starling, dove
+  | 'M' // pigeon, crow, mallard, buzzard
+  | 'L' // heron, swan, stork
+
+export type bird = {
+  id: Number,
+  commonName: string,
+  scientificName: string,
+  distribution: distributionCat[],
+  habitat: habitatCat[],
+  size: sizeCat,
+  conservationStatus: conservationStatusCat,
+  description: string,
 };

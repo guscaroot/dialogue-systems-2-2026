@@ -34,8 +34,14 @@ export const dme = setup({
       return context.latest_speaker == "usr";
     },
     multipleBirdsRetrieved: ({ event }) =>
-    event.type === "BIRDS_RETRIEVED" &&
-    event.value.birds.length > 1,
+      event.type === "BIRDS_RETRIEVED" &&
+      event.value.birds.length > 1,
+    birdIdentified: ({ context }) =>
+      context.is.private.bel.some(
+        p =>
+          p.predicate === "observed_bird" &&
+          p.argument !== "unknown"
+      ),
   },
   actions: {
     sendBackNextMoves: sendTo(
@@ -61,6 +67,21 @@ export const dme = setup({
             )?.argument,
           },
         }
+      }
+    ),
+    sendBirdIdentified: sendTo(
+      ({ context }) => context.parentRef,
+      ({ context }) => {
+        const commonName = context.is.private.bel.find(
+          p => p.predicate === "observed_bird"
+        )!.argument;
+        const identifiedBird = context.is.retrievedBirds!.find(
+          bird => bird.commonName === commonName
+        );
+        return {
+          type: "BIRD_IDENTIFIED",
+          value: identifiedBird
+        };
       }
     ),
     isu: assign(({ context }, params: { name: string }) => {
@@ -253,9 +274,22 @@ export const dme = setup({
         ExecPlan: {
           always: [
             isuTransition("ExecPlan", "remove_findout"),
-            isuTransition("ExecPlan", "exec_consultDB"),
+            isuTransition("BirdIdentificationCheck", "exec_consultDB"),
             { target: "FinalGroup" },
           ],
+        },
+        BirdIdentificationCheck: {
+          always: [
+            {
+              guard: "birdIdentified",
+              target: "BirdIdentified",
+              actions: { type: "sendBirdIdentified" },
+            },
+            { target: "ExecPlan" },
+          ],
+        },
+        BirdIdentified: {
+          type: "final",
         },
         FinalGroup: {
           type: "final",
