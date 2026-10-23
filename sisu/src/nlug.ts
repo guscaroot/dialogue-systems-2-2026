@@ -169,14 +169,22 @@ export async function getBird(
       ],
     }
   }
+  const queryInstruction = `
+    Retrieve bird species matching the observed characteristics in the query.
+    Prioritize distinctive visual features and distinguish similar species.
+    Do not focus on generic characteristics shared by most birds.
+    Penalize contradictions between observed features and documented species characteristics.
+    `; 
+  const text = `Instruct: ${queryInstruction}\nQuery: ${utterance}`
   const embedding = await openai.embeddings
     .create({
       model: "qwen3-embedding",
-      input: utterance,
+      input: text,
       dimensions: 384,
     })
     .then((result) => result.data[0].embedding);
-  const points = (await client.query("birdsDBtest2", {
+  
+  const points = (await client.query("birdsDBtest3", {
     query: embedding,
     filter: filter,
     with_payload: true,
@@ -549,6 +557,7 @@ Then map the user utterance into a JSON array of move objects.
 - Never generate an 'ask' move with any other predicate.
 - If the system move is 'ask', return an 'answer' move using the same predicate as in the system move, but only if the user provides a relevant answer.
 - If the user utterance is not a reasonably interpretable answer, return [].
+- For answers to bird_location or bird_environment questions, map the user utterance into the single best corresponding allowed argument.
 - Allow additional answers only when explicitly supported by the utterance, and only for the predicate 'bird_environment' that can appear as aditionnal information to a system question with predicate 'bird_location'.
 - Never generate 2 'ask' moves using the same predicate.
 - For short answers to bird-feature questions, use the system move's predicate and question text to expand the user's utterance into a complete, explicit sentence. Preserve the user's meaning without adding information.
@@ -585,17 +594,17 @@ Allowed arguments for predicate "bird_location" are exactly:
 - "australia and oceania" // to use only for Australia, New Zealand and Pacific islands
 
 Allowed arguments for predicate "bird_environment" are exactly:
-- "forest" // to use for forest, woods, woodland, forest edges and similar
-- "shrubland" // to use for scrub, shrubland, thickets, shrubby vegetation and similar
-- "grassland" // to use for grassland, meadows, pastures, open grassy areas and similar
-- "agricultural land" // to use for farmland, cultivated fields, arable land, agricultural landscapes and similar
-- "urban and suburban" // to use for gardens, parks, towns, cities, residential areas and similar
-- "freshwater wetlands" // to use for marshes, swamps, reed beds, bogs and other freshwater wetland
-- "freshwater bodies" // to use for lakes, ponds, rivers, streams, reservoirs and other freshwater bodies
-- "coastal and marine" // to use for seashores, beaches, estuaries, tidal flats, coastal waters and marine environments
-- "tundra and heathland" // to use fo arctic tundra, heathland, moorland and similar open environments
-- "mountains and rocky habitats" // to use for mountains, cliffs, rocky slopes and other rocky environments
-- "sparsely vegetated terrain" // to use for bare sand, dunes, gravel flats and other areas with little vegetation, for inland areas only
+- "forest" // to use only for forest, woods, woodland, forest edges and similar
+- "shrubland" // to use only for scrub, shrubland, thickets, shrubby vegetation and similar
+- "grassland" // to use only for grassland, meadows, pastures, open grassy areas and similar
+- "agricultural land" // to use only for farmland, cultivated fields, arable land, agricultural landscapes and similar
+- "urban and suburban" // to use only for gardens, parks, towns, cities, residential areas and similar
+- "freshwater wetlands" // to use only for marshes, swamps, reed beds, bogs and other freshwater wetland
+- "freshwater bodies" // to use only for lakes, ponds, rivers, streams, reservoirs and other freshwater bodies
+- "coastal and marine" // to use only for seashores, beaches, estuaries, tidal flats, coastal waters and marine environments
+- "tundra and heathland" // to use only for arctic tundra, heathland, moorland and similar open environments
+- "mountains and rocky habitats" // to use only for mountains, cliffs, rocky slopes and other rocky environments
+- "sparsely vegetated terrain" // to use only for bare sand, dunes, gravel flats and other areas with little vegetation, for inland areas only
 
 Allowed JSON structures for move objects are exactly:
 - For an ask move:
@@ -721,7 +730,7 @@ System: {
       "predicate": "bird_environment"
     }
 }
-User: "on the coast"
+User: "by the sea"
 Output:
 [
   {
@@ -741,7 +750,7 @@ System: {
       "predicate": "bird_location"
     }
 }
-User: "i'm in a forest in gothenburg"
+User: "i'm in a park in gothenburg"
 Output:
 [
   {
@@ -755,7 +764,7 @@ Output:
     "type": "answer",
     "content": {
       "predicate": "bird_environment",
-      "argument":"forest"
+      "argument":"urban and suburban"
     }
   },
 ]
@@ -860,7 +869,7 @@ User utterance: `
   .create({
         messages:[{ role:  "user" , content: prompt }],
         model:'llama3.1:latest',
-        //temperature: 0.5
+        temperature: 0.5
      })
   .then((result) => result.choices[0].message.content)
   console.log("[NLU] Result:", response);
