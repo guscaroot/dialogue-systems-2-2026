@@ -1,0 +1,38 @@
+{
+    "Forest": "forest",
+    "Savanna": "savanna",
+    "Shrubland": "shrubland",
+    "Grassland": "grassland",
+    "Wetlands (inland)": "inland aquatic",
+    "Rocky areas (eg. inland cliffs, mountain peaks)": "rocky areas",
+    "Caves & Subterranean Habitats (non-aquatic)": "caves and subterranean",
+    "Desert": "desert",
+    "Marine Neritic": "marine and coastal",
+    "Marine Oceanic": "marine and coastal",
+    "Marine Deep Ocean Floor (Benthic and Demersal)": "marine and coastal",
+    "Marine Intertidal": "marine and coastal",
+    "Marine Coastal/Supratidal": "marine and coastal",
+    "Artificial/Terrestrial": {
+        "Arable Land": "agricultural land",
+        "Pastureland": "agricultural land",
+        "Plantations": "agricultural land",
+        "Rural Gardens": "urban and suburban",
+        "Urban Areas": "urban and suburban",
+        "Subtropical/Tropical Heavily Degraded Former Forest": "REMOVE"
+    },
+    "Artificial/Aquatic & Marine": {
+        "Water Storage Areas (over 8ha)": "inland aquatic",
+        "Ponds (below 8ha)": "inland aquatic",
+        "Aquaculture Ponds": "REMOVE",
+        "Salt Exploitation Sites": "REMOVE",
+        "Excavations (open)": "inland aquatic",
+        "Wastewater Treatment Areas": "REMOVE",
+        "Irrigated Land (includes irrigation channels)": "inland aquatic",
+        "Seasonally Flooded Agricultural Land": "inland aquatic",
+        "Canals and Drainage Channels, Ditches": "inland aquatic",
+        "Karst and Other Subterranean Hydrological Systems (human-made)": "inland aquatic",
+        "Marine Anthropogenic Structures": "REMOVE",
+        "Mariculture Cages": "REMOVE",
+        "Mari/Brackish-culture Ponds": "REMOVE"
+    }
+}

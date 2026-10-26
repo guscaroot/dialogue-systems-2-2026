@@ -184,22 +184,22 @@ export async function getBird(
     })
     .then((result) => result.data[0].embedding);
   
-  const points = (await client.query("birdsDBtest3", {
+  const points = (await client.query("birdsDBfromJson", {
     query: embedding,
     filter: filter,
     with_payload: true,
-    limit: 1
+    limit: 10
   })).points;
   if (points.length === 0) {
     console.log("[NLU] No bird retrieved")
   };
   const retrieved_birds : bird[] = points.map((item) => ({
-    id: Number(item.id),
+    id: item.id as number,
     commonName: item.payload!.commonName as string,
     scientificName: item.payload!.scientificName as string,
     distribution: item.payload!.distribution as distributionCat[],
     habitat: item.payload!.habitat as habitatCat[],
-    size: item.payload!.size as sizeCat,
+    //size: 'M',
     conservationStatus: item.payload!.conservationStatus as conservationStatusCat,
     description: item.payload!.description as string,
   }));
@@ -225,7 +225,7 @@ export async function nluLLM(utterance: string, predicates: string[], lastSysMov
   For 'ask' moves, use only given predicates.
   For 'answer' moves, use only given predicates, and retrieve the string to fill in the argument of the proposition or the shortanswer.
   If the answer corresponds to a location, use type 'answer' with predicate 'bird_location' in case of a Proposition, and map the user answer to its corresponding allowed agument.
-  If the answer corresponds to an environment, use type 'answer' with predicate 'bird_environment' in case of a Proposition, and map the user answer to its corresponding allowed agument.
+  If the answer corresponds to an environment, use type 'answer' with predicate 'bird_environment' in case of a Proposition, and map the user answer to the corresponding country.
   The user may over-answer and reply to 'bird_environment' together with 'bird_location'.
   If the answer corresponds to a bird description, use type 'answer' with predicate 'bird_description' and the user utterance as argument.
   If the answer corresponds to a specific bird's feature, use type 'answer' with the appropriate allowed predicate and the user utterance as argument.
@@ -238,31 +238,22 @@ export async function nluLLM(utterance: string, predicates: string[], lastSysMov
   Allowed predicates are exactly:
   ${predicates.map(predicate => `- "${predicate}"`).join("\n")}
 
-  Allowed arguments for predicate "bird_location" are exactly:
-  - "northern europe" // to use only for Sweden, Norway, Finland, Denmark, Iceland and the Baltic countries
-  - "non-northern europe" // to use only for all remaining European regions
-  - "north africa" // to use only for Morocco to Egypt
-  - "sub-saharan africa" // to use only for Africa south of the Sahara
-  - "middle-east and western asia" // to use only for Anatolia, Caucasus, Levant, Cyprus, Iraq, Iran and Arabian Peninsula
-  - "central and south asia" // to use only for Central Asian countries and the Indian subcontinent
-  - "east asia" // to use only for China, Mongolia, Korea and Japan
-  - "southeast asia" // to use only for Mainland and island Southeast Asia
-  - "north america" // to use only for Greenland, Canada, the United States, Mexico, Central America and the Caribbean
-  - "south america" // to use only for all countries and territories in South America, including the Falkland Islands
-  - "australia and oceania" // to use only for Australia, New Zealand and Pacific islands
+  Allowed arguments for predicate "bird_location" are only countries names.
 
   Allowed arguments for predicate "bird_environment" are exactly:
   - "forest" // to use for forest, woods, woodland, forest edges and similar
-  - "shrubland" // to use for scrub, shrubland, thickets, shrubby vegetation and similar
-  - "grassland" // to use for grassland, meadows, pastures, open grassy areas and similar
-  - "agricultural land" // to use for farmland, cultivated fields, arable land, agricultural landscapes and similar
-  - "urban and suburban" // to use for gardens, parks, towns, cities, residential areas and similar
-  - "freshwater wetlands" // to use for marshes, swamps, reed beds, bogs and other freshwater wetland
-  - "freshwater bodies" // to use for lakes, ponds, rivers, streams, reservoirs and other freshwater bodies
-  - "coastal and marine" // to use for seashores, beaches, estuaries, tidal flats, coastal waters and marine environments
-  - "tundra and heathland" // to use fo arctic tundra, heathland, moorland and similar open environments
-  - "mountains and rocky habitats" // to use for mountains, cliffs, rocky slopes and other rocky environments
-  - "sparsely vegetated terrain" // to use for bare sand, dunes, gravel flats and other areas with little vegetation, for inland areas only
+  - "savanna" / to use for dry and moist savannas
+  - "shrubland" // to use for scrub, shrubland, thickets, shrubby vegetation, shrub-dominated heathland and similar
+  - "grassland" // to use for grassland, meadows, tundra grassland, open grassy areas and similar
+  - "inland aquatic" // to use for inland rivers, streams, creeks, lakes, ponds, reservoirs, marshes, swamps, bogs, fens, reed beds, freshwater springs, inland saline waters, canals, and artificial inland aquatic habitats
+  - "rocky areas" // to use for inland cliffs, mountain peaks, rocky slopes, exposed rock, scree, rocky outcrops and other rocky environments
+  - "caves and subterranean" // to use for caves, underground cavities, and other non-aquatic subterranean environment
+  - "desert" // to use for hot, temperate, and cold deserts, including inland deserts with predominantly bare sand or gravel
+  - "marine and coastal" // to use for seashores, beaches, estuaries, tidal flats, coastal waters, coral reefs, seagrass beds, ocean, deep-sea, coastal dunes and cliffs and other marine environments
+  - "agricultural land" // to use for farmland, cultivated fields, arable land, cropland, agricultural pastures, orchards, vineyards, agricultural landscapes and similar
+  - "urban and suburban" // to use for gardens, parks, towns, cities, residential areas, suburbs, villages and similar
+
+
 
   For an ask move:
   {
@@ -555,9 +546,10 @@ Then map the user utterance into a JSON array of move objects.
 
 - If the system move is 'greet' and the user expresses an intention to identify a bird, return an 'ask' move with the predicate 'observed_bird'. Otherwise, return [].
 - Never generate an 'ask' move with any other predicate.
-- If the system move is 'ask', return an 'answer' move using the same predicate as in the system move, but only if the user provides a relevant answer.
+- If the system move is 'ask', always return an 'answer' move using the same predicate as in the system move, but only if the user provides a relevant answer.
 - If the user utterance is not a reasonably interpretable answer, return [].
-- For answers to bird_location or bird_environment questions, map the user utterance into the single best corresponding allowed argument.
+- For answers to bird_location, map the user utterance into the corresponding allowed argument.
+- For answers to bird_environment questions, map the user utterance into the single best corresponding allowed argument.
 - Allow additional answers only when explicitly supported by the utterance, and only for the predicate 'bird_environment' that can appear as aditionnal information to a system question with predicate 'bird_location'.
 - Never generate 2 'ask' moves using the same predicate.
 - For short answers to bird-feature questions, use the system move's predicate and question text to expand the user's utterance into a complete, explicit sentence. Preserve the user's meaning without adding information.
@@ -581,30 +573,257 @@ ${predicates
   .join("\n")}
 
 Allowed arguments for predicate "bird_location" are exactly:
-- "northern europe" // to use only for Sweden, Norway, Finland, Denmark, Iceland and the Baltic countries
-- "non-northern europe" // to use only for all remaining European regions
-- "north africa" // to use only for Morocco to Egypt
-- "sub-saharan africa" // to use only for Africa south of the Sahara
-- "middle-east and western asia" // to use only for Anatolia, Caucasus, Levant, Cyprus, Iraq, Iran and Arabian Peninsula
-- "central and south asia" // to use only for Central Asian countries and the Indian subcontinent
-- "east asia" // to use only for China, Mongolia, Korea and Japan
-- "southeast asia" // to use only for Mainland and island Southeast Asia
-- "north america" // to use only for Greenland, Canada, the United States, Mexico, Central America and the Caribbean
-- "south america" // to use only for all countries and territories in South America, including the Falkland Islands
-- "australia and oceania" // to use only for Australia, New Zealand and Pacific islands
+  - "jordan"
+  - "greece"
+  - "georgia"
+  - "uruguay"
+  - "puerto rico (to usa)"
+  - "togo"
+  - "kuwait"
+  - "nauru"
+  - "bonaire, sint eustatius and saba (to netherlands)"
+  - "kyrgyzstan"
+  - "tonga"
+  - "hungary"
+  - "italy"
+  - "lesotho"
+  - "saudi arabia"
+  - "cape verde"
+  - "mauritius"
+  - "latvia"
+  - "nicaragua"
+  - "mexico"
+  - "new zealand"
+  - "libya"
+  - "marshall islands"
+  - "sudan"
+  - "moldova"
+  - "vanuatu"
+  - "eritrea"
+  - "st lucia"
+  - "cameroon"
+  - "san marino"
+  - "iceland"
+  - "russia (central asian)"
+  - "kazakhstan"
+  - "grenada"
+  - "cook islands"
+  - "argentina"
+  - "curaçao (to netherlands)"
+  - "russia (asian)"
+  - "åland islands (to finland)"
+  - "dominican republic"
+  - "usa"
+  - "timor-leste"
+  - "austria"
+  - "trinidad and tobago"
+  - "kiribati"
+  - "montserrat (to uk)"
+  - "netherlands"
+  - "palau"
+  - "india"
+  - "france"
+  - "greenland (to denmark)"
+  - "bangladesh"
+  - "singapore"
+  - "united states minor outlying islands (to usa)"
+  - "armenia"
+  - "mongolia"
+  - "north macedonia"
+  - "belarus"
+  - "réunion (to france)"
+  - "malta"
+  - "congo, democratic republic of"
+  - "bosnia and herzegovina"
+  - "colombia"
+  - "pakistan"
+  - "south sudan"
+  - "svalbard and jan mayen islands (to norway)"
+  - "lithuania"
+  - "south africa"
+  - "spain"
+  - "ghana"
+  - "french guiana"
+  - "suriname"
+  - "bulgaria"
+  - "serbia"
+  - "belize"
+  - "australia"
+  - "mali"
+  - "monaco"
+  - "azerbaijan"
+  - "british indian ocean territory"
+  - "morocco"
+  - "barbados"
+  - "comoros"
+  - "russia (european)"
+  - "brunei"
+  - "kenya"
+  - "sri lanka"
+  - "algeria"
+  - "cocos (keeling) islands (to australia)"
+  - "guinea-bissau"
+  - "china (mainland)"
+  - "anguilla (to uk)"
+  - "indonesia"
+  - "virgin islands (to uk)"
+  - "thailand"
+  - "croatia"
+  - "oman"
+  - "philippines"
+  - "falkland islands (malvinas)"
+  - "fiji"
+  - "côte d'ivoire"
+  - "mayotte (to france)"
+  - "tanzania"
+  - "afghanistan"
+  - "cyprus"
+  - "united arab emirates"
+  - "paraguay"
+  - "bhutan"
+  - "chile"
+  - "venezuela"
+  - "mozambique"
+  - "french southern territories"
+  - "estonia"
+  - "bahamas"
+  - "sierra leone"
+  - "solomon islands"
+  - "christmas island (to australia)"
+  - "yemen"
+  - "aruba (to netherlands)"
+  - "gabon"
+  - "dominica"
+  - "brazil"
+  - "germany"
+  - "faroe islands (to denmark)"
+  - "czechia"
+  - "israel"
+  - "malawi"
+  - "turks and caicos islands (to uk)"
+  - "united kingdom"
+  - "russia"
+  - "st helena (to uk)"
+  - "jamaica"
+  - "finland"
+  - "tunisia"
+  - "vatican city"
+  - "bahrain"
+  - "egypt"
+  - "north korea"
+  - "japan"
+  - "south korea"
+  - "angola"
+  - "guinea"
+  - "belgium"
+  - "costa rica"
+  - "chad"
+  - "lebanon"
+  - "norway"
+  - "guatemala"
+  - "antigua and barbuda"
+  - "rwanda"
+  - "romania"
+  - "st barthelemy (to france)"
+  - "montenegro"
+  - "canada"
+  - "türkiye"
+  - "slovenia"
+  - "guyana"
+  - "somalia"
+  - "madagascar"
+  - "slovakia"
+  - "western sahara"
+  - "bermuda (to uk)"
+  - "portugal"
+  - "maldives"
+  - "eswatini"
+  - "uzbekistan"
+  - "new caledonia (to france)"
+  - "botswana"
+  - "ethiopia"
+  - "taiwan, china"
+  - "ukraine"
+  - "djibouti"
+  - "seychelles"
+  - "st kitts and nevis"
+  - "gambia"
+  - "sint maarten (to netherlands)"
+  - "albania"
+  - "liberia"
+  - "peru"
+  - "virgin islands (to usa)"
+  - "nepal"
+  - "st vincent and the grenadines"
+  - "iran, islamic republic of"
+  - "st martin (to france)"
+  - "andorra"
+  - "cayman islands (to uk)"
+  - "ireland"
+  - "senegal"
+  - "st pierre and miquelon (to france)"
+  - "gibraltar (to uk)"
+  - "cuba"
+  - "panama"
+  - "honduras"
+  - "uganda"
+  - "cambodia"
+  - "sweden"
+  - "myanmar"
+  - "laos"
+  - "tajikistan"
+  - "hong kong (china)"
+  - "liechtenstein"
+  - "poland"
+  - "burundi"
+  - "turkmenistan"
+  - "niger"
+  - "são tomé e príncipe"
+  - "macao (china)"
+  - "palestine"
+  - "luxembourg"
+  - "papua new guinea"
+  - "syria"
+  - "zimbabwe"
+  - "iraq"
+  - "bolivia"
+  - "martinique (to france)"
+  - "guadeloupe (to france)"
+  - "vietnam"
+  - "mauritania"
+  - "ecuador"
+  - "burkina faso"
+  - "equatorial guinea"
+  - "el salvador"
+  - "congo"
+  - "malaysia"
+  - "zambia"
+  - "benin"
+  - "south georgia & the south sandwich islands"
+  - "namibia"
+  - "switzerland"
+  - "northern mariana islands (to usa)"
+  - "central african republic"
+  - "micronesia, federated states of"
+  - "haiti"
+  - "guam (to usa)"
+  - "nigeria"
+  - "qatar"
+  - "denmark"
 
-Allowed arguments for predicate "bird_environment" are exactly:
-- "forest" // to use only for forest, woods, woodland, forest edges and similar
-- "shrubland" // to use only for scrub, shrubland, thickets, shrubby vegetation and similar
-- "grassland" // to use only for grassland, meadows, pastures, open grassy areas and similar
-- "agricultural land" // to use only for farmland, cultivated fields, arable land, agricultural landscapes and similar
-- "urban and suburban" // to use only for gardens, parks, towns, cities, residential areas and similar
-- "freshwater wetlands" // to use only for marshes, swamps, reed beds, bogs and other freshwater wetland
-- "freshwater bodies" // to use only for lakes, ponds, rivers, streams, reservoirs and other freshwater bodies
-- "coastal and marine" // to use only for seashores, beaches, estuaries, tidal flats, coastal waters and marine environments
-- "tundra and heathland" // to use only for arctic tundra, heathland, moorland and similar open environments
-- "mountains and rocky habitats" // to use only for mountains, cliffs, rocky slopes and other rocky environments
-- "sparsely vegetated terrain" // to use only for bare sand, dunes, gravel flats and other areas with little vegetation, for inland areas only
+
+  Allowed arguments for predicate "bird_environment" are exactly:
+  - "forest" // to use for forest, woods, woodland, forest edges and similar
+  - "savanna" // to use for dry and moist savannas
+  - "shrubland" // to use for scrub, shrubland, thickets, shrubby vegetation, shrub-dominated heathland and similar
+  - "grassland" // to use for grassland, meadows, tundra grassland, open grassy areas and similar
+  - "inland aquatic" // to use for inland rivers, streams, creeks, lakes, ponds, reservoirs, marshes, swamps, bogs, fens, reed beds, freshwater springs, inland saline waters, canals, artificial inland aquatic habitats and similar
+  - "rocky areas" // to use for inland cliffs, mountain peaks, rocky slopes, exposed rock, scree, rocky outcrops and other rocky environments
+  - "caves and subterranean" // to use for caves, underground cavities, and other non-aquatic subterranean environment
+  - "desert" // to use for hot, temperate, and cold deserts, including inland deserts with predominantly bare sand or gravel
+  - "marine and coastal" // to use for seashores, beaches, estuaries, tidal flats, coastal waters, coral reefs, seagrass beds, ocean, deep-sea, coastal dunes and cliffs and other marine environments
+  - "agricultural land" // to use for farmland, cultivated fields, arable land, cropland, agricultural pastures, orchards, vineyards, agricultural landscapes and similar
+  - "urban and suburban" // to use for gardens, parks, towns, cities, residential areas, suburbs, villages and similar
 
 Allowed JSON structures for move objects are exactly:
 - For an ask move:
@@ -677,7 +896,7 @@ Output:
     "type": "answer",
     "content": "content": {
       "predicate": "bird_location",
-      "argument":"northern europe"
+      "argument":"sweden"
     }
   }
 ]
@@ -697,7 +916,7 @@ Output:
     "type": "answer",
     "content": "content": {
       "predicate": "bird_location",
-      "argument":"non-northern europe"
+      "argument":"france"
     }
   }
 ]
@@ -737,7 +956,7 @@ Output:
     "type": "answer",
     "content": {
       "predicate": "bird_environment",
-      "argument":"coastal and marine"
+      "argument":"marine and coastal"
     }
   }
 ]
@@ -757,7 +976,7 @@ Output:
     "type": "answer",
     "content": {
       "predicate": "bird_location",
-      "argument":"northern europe"
+      "argument":"sweden"
     }
   },
   {
@@ -840,7 +1059,7 @@ System:
     "predicate": "bird_environment"
   }
 }
-User: "the bird has a blue crown"
+User: "the bird has a long peak"
 Output: []
 
 Example M - uncertainty without an answer
@@ -901,8 +1120,7 @@ export async function getBirdQuestion(birds: bird[], totalDescription: Propositi
   Compare the candidate species' characteristics, based only on the provided descriptions.
   Consider the information already given by the user.
   Identify a visible characteristic that is not already given and best separates the candidates (such as colour, size, markings, or shape).
-  Never use an already used predicate.
-  Never ask about a characteristic whose predicate already appears in the information provided by the user.
+  NEVER use an already used predicate.
   Treat predicates as identifiers of characteristics. For example, if "bird_colour" has already been provided, do not ask about colour again, even if the question uses different wording.
   Ask about easily observable features such as plumage, head colour, beak shape, body size, or leg length.
   Avoid questions about characteristics shared by all candidates.
@@ -927,6 +1145,7 @@ export async function getBirdQuestion(birds: bird[], totalDescription: Propositi
   .create({
         messages:[{ role:  "user" , content: prompt }],
         model:'llama3.1:latest',
+        response_format: { type: "json_object" },
         temperature: 0.2 // for more predictable / consistent responses
      })
   .then((result) => result.choices[0].message.content)
