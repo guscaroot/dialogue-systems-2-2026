@@ -184,7 +184,7 @@ export async function getBird(
     query: embedding,
     filter: filter,
     with_payload: true,
-    limit: 1
+    limit: 10
   })).points;
   if (points.length === 0) {
     console.log("[NLU] No bird retrieved")
@@ -221,7 +221,7 @@ export async function nluLLM(utterance: string, predicates: string[], lastSysMov
   - If the system move is 'ask', return an 'answer' move using the same predicate as in the system move, but only if the user provides a relevant answer. Otherwise, return [].
   - If the user utterance is not a reasonably interpretable answer, return [].
   - For answers to bird_location and bird_environment questions, map the user utterance into the single best corresponding allowed argument.
-  - Allow additional answers only when explicitly supported by the utterance, and only for the predicate 'bird_environment' that can appear as aditionnal information to a system question with predicate 'bird_location'.
+  - Allow additional answers ONLY when EXPLICITLY supported by the utterance, and only for the predicate 'bird_environment' that can appear as aditionnal information to a system question with predicate 'bird_location', ONLLY if the user gives detail about the environment.
   - Never generate 2 'answer' moves using the same predicate.
   - For short answers to bird-feature questions, use the system move's predicate and question text to expand the user's utterance into a complete, explicit sentence. Preserve the user's meaning without adding information.
   - NEVER guess or invent information.
@@ -862,22 +862,22 @@ export async function getBirdQuestion(birds: bird[], totalDescription: Propositi
   Identify a visible characteristic that is not already given and best separates the candidates (such as colour, size, markings, or shape).
   NEVER use an already used predicate.
   Treat predicates as identifiers of characteristics. For example, if "bird_colour" has already been provided, do not ask about colour again, even if the question uses different wording.
-  Ask about easily observable features such as plumage, head colour, beak shape, body size, or leg length.
+  Ask about easily observable features such as plumage, head colour, beak shape, body size, legs length or similar.
   Avoid questions about characteristics shared by all candidates.
   Make the question short, clear, and easy for a non-expert to answer.
   Do not ask about a characteristic that cannot reasonably be inferred from the available descriptions.
   Do not name the bird species.
   Use ONLY open-ended or multiple-choice questions.
   NEVER ask yes/no questions.
-  Return ONLY the question as a JSON object:
+  Return ONLY the question as a JSON object with the following structure:
   {
     "type": "whq",
     "predicate": predicate,
     "text": string
   }
   where "type" has only "whq" as allowed value
-  where predicate is inferred and represents the question content, for instance "bird_colour", "bird_crown", "bird_beak", "bird_legs", "bird_shape"...
-  and where string is the question itself
+  where predicate is inferred and represents the question content, for instance "bird_colour", "bird_crown", "bird_beak", "bird_legs", "bird_shape", "bird_beak_colour".
+  and where string is the question itself.
 `;
 
   console.log("[MORE INFO NEEDED] Getting bird question");
@@ -889,19 +889,26 @@ export async function getBirdQuestion(birds: bird[], totalDescription: Propositi
         temperature: 0.2 // for more predictable / consistent responses
      })
   .then((result) => result.choices[0].message.content)
-  console.log("[MORE INFO NEEDED] additional question to ask:", response);
-  const question: Question = JSON.parse(response!)
+  const usedPredicates = totalDescription.map(item => item.predicate)
+  if (!response) {
+    console.log("[MORE INFO NEEDED] Empty model response");
+    return getFallBackQuestion(usedPredicates);
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(response);
+  } catch (error) {
+    console.log("[MORE INFO NEEDED] Invalid JSON:", response);
+    return getFallBackQuestion(usedPredicates);
+  }
+  if (!validateQuestion(parsed, totalDescription)) {
+    console.log("[NLU] Invalid question structure or predicate:", parsed);
+    return getFallBackQuestion(usedPredicates);
+  }
+  const question: Question = parsed
+  console.log("[MORE INFO NEEDED] additional question to ask:", question);
   return question
 };
-
-const fallBackMove1: Move = {
-    "type": "ask",
-    "content": {
-      "type": "whq",
-      "predicate": "bird_detail1",
-      "text": "Could you give some more detail?"
-    }
-  };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 return (
@@ -912,21 +919,18 @@ return (
 };
 
 function validateMoves(value: unknown, predicates: string[]): value is Move[] {
-  // The top-level value must be an array.
+  // The top-level value must be an array
   if (!Array.isArray(value)) {
     return false;
   }
-
   const allowedAnswerPredicates = new Set(
     predicates.filter(predicate => predicate !== "observed_bird")
   );
-
   return value.every((move: unknown) => {
     if (!isRecord(move)) {
       return false;
     }
-
-    // Validate ask moves.
+    // Validate ask moves
     if (move.type === "ask") {
       return (
         isRecord(move.content) &&
@@ -936,8 +940,7 @@ function validateMoves(value: unknown, predicates: string[]): value is Move[] {
         Object.keys(move.content).length === 2
       );
     }
-
-    // Validate answer moves.
+    // Validate answer moves
     if (move.type === "answer") {
       if (
         !isRecord(move.content) ||
@@ -946,9 +949,7 @@ function validateMoves(value: unknown, predicates: string[]): value is Move[] {
       ) {
         return false;
       }
-
       const { predicate, argument } = move.content;
-
       if (
         typeof predicate !== "string" ||
         typeof argument !== "string" ||
@@ -956,26 +957,69 @@ function validateMoves(value: unknown, predicates: string[]): value is Move[] {
       ) {
         return false;
       }
-
-      // Validate categorical arguments.
+      // Validate categorical arguments
       if (
         predicate === "bird_location" &&
         !distributionCats.has(argument as distributionCat)
       ) {
         return false;
       }
-
       if (
         predicate === "bird_environment" &&
         !habitatCats.has(argument as habitatCat)
       ) {
         return false;
       }
-
       return true;
     }
-
-    // Reject all other move types.
+    // Reject all other move types
     return false;
   });
-}
+};
+
+function isQuestion(value: unknown): value is Question {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const question = value as Record<string, unknown>;
+  return (
+    question.type === "whq" &&
+    typeof question.predicate === "string" &&
+    question.predicate.trim().length > 0 &&
+    typeof question.text === "string" &&
+    question.text.trim().length > 0
+  );
+};
+
+function validateQuestion(value: unknown, totalDescription: Proposition[]): value is Question {
+  if (!isQuestion(value)) {
+    return false;
+  }
+  const usedPredicates = totalDescription.map(item => item.predicate)
+  return !usedPredicates.includes(value.predicate);
+};
+
+const fallBackQuestions: Question[] = [
+    {
+      type: "whq",
+      predicate: "bird_additional_observation",
+      text: "What else can you tell me about the bird?"
+    },
+    {
+      type: "whq",
+      predicate: "bird_other_characteristics",
+      text: "What other characteristics have you noticed?"
+    },
+    {
+      type: "whq",
+      predicate: "bird_unspecified_detail",
+      text: "Is there any other detail you can share about the bird?"
+    }
+  ];
+
+function getFallBackQuestion(usedPredicates: string[]) {
+  const availableQuestion = fallBackQuestions.find(
+    question => !usedPredicates.includes(question.predicate)
+  );
+  return availableQuestion ?? fallBackQuestions[fallBackQuestions.length - 1]
+};
