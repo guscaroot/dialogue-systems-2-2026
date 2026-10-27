@@ -184,7 +184,7 @@ export async function getBird(
     query: embedding,
     filter: filter,
     with_payload: true,
-    limit: 10
+    limit: 1
   })).points;
   if (points.length === 0) {
     console.log("[NLU] No bird retrieved")
@@ -221,7 +221,7 @@ export async function nluLLM(utterance: string, predicates: string[], lastSysMov
   - If the system move is 'ask', return an 'answer' move using the same predicate as in the system move, but only if the user provides a relevant answer. Otherwise, return [].
   - If the user utterance is not a reasonably interpretable answer, return [].
   - For answers to bird_location and bird_environment questions, map the user utterance into the single best corresponding allowed argument.
-  - Allow additional answers ONLY when EXPLICITLY supported by the utterance, and only for the predicate 'bird_environment' that can appear as aditionnal information to a system question with predicate 'bird_location', ONLLY if the user gives detail about the environment.
+  - Allow additional answers ONLY when EXPLICITLY supported by the utterance, and only for the predicate 'bird_environment' that can appear as aditionnal information to a system question with predicate 'bird_location', ONLY if the user gives detail about the environment. If the user answer with a city name, ONLY return a bird_location answer.
   - Never generate 2 'answer' moves using the same predicate.
   - For short answers to bird-feature questions, use the system move's predicate and question text to expand the user's utterance into a complete, explicit sentence. Preserve the user's meaning without adding information.
   - NEVER guess or invent information.

@@ -152,6 +152,11 @@ export const dme = setup({
   context: ({ input }) => {
     return input;
   },
+  on: {
+    FINAL_SPEECH_COMPLETE: {
+      target: ".Done",
+    },
+  },
   initial: "Select",
   states: {
     Select: {
@@ -303,5 +308,8 @@ export const dme = setup({
         { target: "Update" },
       ],
     },
+    Done: {
+      type: "final"
+    }
   },
 });

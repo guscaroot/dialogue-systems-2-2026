@@ -98,6 +98,7 @@ export interface TotalInformationState {
   generatedBirdQuestion?: Question;
   birdLocation?: string,
   birdEnvironment?: string,
+  identifiedBird?: bird
 }
 
 export type DMEvent =
@@ -110,7 +111,8 @@ export type DMEvent =
 export type DMEEvent = 
   | SaysMovesEvent
   | BirdsRetrievedEvent
-  | BirdQuestionGeneratedEvent;
+  | BirdQuestionGeneratedEvent
+  | FinalSpeechCompleteEvent;
 
 export type SaysMovesEvent = {
   type: "SAYS";
@@ -147,6 +149,10 @@ export type BirdFiltersEvent = {
 export type BirdIdentifiedEvent = {
   type: "BIRD_IDENTIFIED";
   value: bird;
+};
+
+export type FinalSpeechCompleteEvent = {
+  type: "FINAL_SPEECH_COMPLETE";
 };
 
 export type distributionCat =

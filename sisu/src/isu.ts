@@ -1,4 +1,4 @@
-import { createActor, setup, AnyMachineSnapshot, sendTo, assign, fromPromise } from "xstate";
+import { createActor, setup, AnyMachineSnapshot, sendTo, assign, fromPromise, stopChild } from "xstate";
 import { Settings, speechstate } from "speechstate";
 import { createBrowserInspector } from "@statelyai/inspect";
 import { KEY } from "./azure";
@@ -40,6 +40,10 @@ const dmMachine = setup({
     fromPromise<Question,{birds: bird[], totalDescription: Proposition[]}>(async ({input}) => {
       return await getBirdQuestion(input.birds, input.totalDescription)
     },),
+    displayBirdImage:
+    fromPromise<void, bird>(async ({ input }) => {
+      await displayBirdImage(input);
+    }),
   },
   actions: {
     speak_next_moves: ({ context, event }) => {
@@ -58,6 +62,7 @@ const dmMachine = setup({
       context.ssRef.send({
         type: "LISTEN",
       }),
+    stopSpeechState: stopChild(({ context }) => context.ssRef),
   },
   types: {} as {
     context: DMContext;
@@ -95,16 +100,19 @@ const dmMachine = setup({
             };
           }),
         },
-        BIRD_IDENTIFIED: {
+        /*BIRD_IDENTIFIED: {
           actions: ({ event }) => {
             console.log("[DM] Bird identified:", event.value.commonName);
             displayBirdImage(event.value);
           }
-        },
+        },*/
       },
       states: {
         Interpret: {
           initial: "Idle",
+          on: {
+            BIRD_IDENTIFIED: ".Done",
+          },
           states: {
             Idle: {
               on: {
@@ -274,6 +282,9 @@ const dmMachine = setup({
                 ]
               }
             },
+            Done:{
+              type: "final"
+            },
             GeneratingBirdQuestion: {
               invoke: {
                 src: "getBirdQuestion",
@@ -332,29 +343,91 @@ const dmMachine = setup({
             Speaking: {
               entry: "speak_next_moves",
               on: {
-                SPEAK_COMPLETE: {
-                  target: "Idle",
-                },
+                SPEAK_COMPLETE: [
+                  { 
+                    guard: ({ context }) =>
+                      context.lastSysMove?.type === "answer" &&
+                      typeof context.lastSysMove.content === "object" &&
+                      context.lastSysMove.content !== null &&
+                      "predicate" in context.lastSysMove.content &&
+                      context.lastSysMove.content.predicate === "observed_bird",
+                    target: "Done",
+                    actions: [
+                      "stopSpeechState",
+                      sendTo("dmeID", {type: "FINAL_SPEECH_COMPLETE"})
+                    ]
+                  },
+                  { target: "Idle"},
+                ]
               },
             },
+            Done: {
+              type: "final"
+            }
           },
         },
         DME: {
-          invoke: {
-            src: "dme",
-            id: "dmeID",
-            input: ({ context, self }) => {
-              return {
-                parentRef: self,
-                latest_moves: context.latest_moves,
-                latest_speaker: context.latest_speaker,
-                is: context.is,
-              };
+          initial: "Running",
+          states: {
+            Running: {
+              invoke: {
+                src: "dme",
+                id: "dmeID",
+                input: ({ context, self }) => ({
+                  parentRef: self,
+                  latest_moves: context.latest_moves,
+                  latest_speaker: context.latest_speaker,
+                  is: context.is,
+                }),
+                onDone: {
+                  target: "Done",
+                },
+              },
+            },
+            Done: {
+              type: "final",
+            },
+          },
+        },
+        DisplayingBirdImage: {
+          initial: "Waiting",
+          states: {
+            Waiting: {
+              on: {
+                BIRD_IDENTIFIED: {
+                  target: "Displaying",
+                  actions: [
+                    ({ event }) => console.log("[DM] Bird identified:", event.value.commonName),
+                    assign(({ event }) => ({ identifiedBird: event.value }))
+                  ],
+                },
+              },
+            },
+            Displaying: {
+              invoke: {
+                src: "displayBirdImage",
+                input: ({ context }) => context.identifiedBird!,
+                onDone: {
+                  target: "Done",
+                  actions: () => {console.log("[DM] Bird image loaded")},
+                },
+                onError: {
+                  target: "Done",
+                  actions: ({ event }) => {console.error("[DM] Failed to display bird image:", event.error)},
+                },
+              },
+            },
+            Done: {
+              type: "final",
             },
           },
         },
       },
+      onDone: "Done",
     },
+    Done: {
+      type: "final"
+    }
   },
 });
 
