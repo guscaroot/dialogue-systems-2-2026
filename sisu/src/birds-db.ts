@@ -36,7 +36,14 @@ program
   .argument("<name>", "collection name")
   .action(async (name) => {
     await client.createCollection(name, {
-      vectors: { size: 384, distance: "Cosine" },
+      vectors: {
+        dense: {
+          size: 384,
+          distance: "Cosine"}
+      },
+      sparse_vectors: {
+        bm25: {}
+      } 
     });
     console.log(`Succesfully created collection: ${name}`);
   });
@@ -48,11 +55,14 @@ program
   .action(async (collection) => {
     const points = await Promise.all(
       birdsDB.map(async (bird) => {
-        const text = `${instruction}\nBird description: ${bird.description}`
-        const embedding = await embed(bird.description);
+        const text = bird.description
+        const embedding = await embed(text);
         return {
           id: bird.species_id,
-          vector: embedding,
+          vector: {
+            dense: embedding,
+            bm25: {text, model: "qdrant/bm25"},
+          },
           payload: { 
             commonName: bird.common_name.toLowerCase(),
             scientificName: bird.scientific_name.toLowerCase(),
@@ -60,7 +70,8 @@ program
             habitat: bird.habitats.map(country => country.toLowerCase()),
             conservationStatus: bird.conservation_status.toLowerCase(),
             description: bird.description.toLowerCase(),
-            wikiImageURL: bird.wiki_image_url},            
+            wikiImageURL: bird.wiki_image_url
+          },            
         };
       }),
     );

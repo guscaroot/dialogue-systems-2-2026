@@ -84,11 +84,11 @@ export async function getBird(
   environment: string,
   retrievedBirds?: bird[],
   ): Promise<bird[]> {
-  console.log("[NLU] Getting bird query");
+  console.log("[BIRD RETRIEVAL] Getting bird query");
   
   const utterance = totalDescription.map(i => i.argument).join('. ')
   if (!utterance) {
-    console.warn("[NLU] No bird description available for retrieval");
+    console.warn("[BIRD RETRIEVAL] No bird description available for retrieval");
     return [];
   }
   let filter;
@@ -146,14 +146,31 @@ export async function getBird(
     })
     .then((result) => result.data[0].embedding);
   
-  const points = (await client.query("birdsDBfromJson", {
-    query: embedding,
-    filter: filter,
+  const points = (await client.query("birdsDB", {
+    prefetch: [
+      {
+        query: embedding,
+        using: "dense",
+        filter: filter,
+        limit: 10
+      },
+      {
+          query: {text, model: "qdrant/bm25"},
+          using: "bm25",
+          filter: filter,
+          limit: 10,
+        },
+    ],
+    query: {
+      rrf: {
+        weights: [4.0, 0.0]
+      }
+    },
     with_payload: true,
-    limit: 10
+    limit: 5,
   })).points;
   if (points.length === 0) {
-    console.log("[NLU] No bird retrieved")
+    console.log("[BIRD RETRIEVAL] No bird retrieved")
   };
   const retrieved_birds : bird[] = points.map((item) => ({
     id: item.id as number,
@@ -170,7 +187,7 @@ export async function getBird(
     bird: item.payload!.commonName,
     score: item.score
   }))
-  console.log("[NLU] Getting Bird result:")
+  console.log("[BIRD RETRIEVAL] Getting Bird result:")
   console.table(birds_scores)
   return retrieved_birds
 }
