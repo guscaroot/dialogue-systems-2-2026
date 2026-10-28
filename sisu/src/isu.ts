@@ -3,7 +3,7 @@ import { Settings, speechstate } from "speechstate";
 import { createBrowserInspector } from "@statelyai/inspect";
 import { KEY } from "./azure";
 import { DMContext, DMEvent, NextMovesEvent, Move, Question, Proposition, bird } from "./types";
-import { getBird, nlg, nlu, nluLLM, getBirdQuestion } from "./nlug"; // nluQdrant
+import { getBird, nlg, nluLLM, getBirdQuestion } from "./nlug";
 import { dme } from "./dme";
 import { initialIS } from "./is";
 import { displayBirdImage } from "./birds-image";
@@ -29,8 +29,8 @@ const settings: Settings = {
 const dmMachine = setup({
   actors: {
     dme: dme,
-    nluLLM: fromPromise<Move[], {utt:string, predicates: string[], lastSysMove: Move}>(async ({input}) => {
-      return await nluLLM(input.utt, input.predicates, input.lastSysMove)
+    nluLLM: fromPromise<Move[], {utt:string, predicates: string[], lastSysMoves: Move[]}>(async ({input}) => {
+      return await nluLLM(input.utt, input.predicates, input.lastSysMoves)
     },),
     getBird:
     fromPromise<bird[],{totalDescription: Proposition[], loc: string, env: string, birds?: bird[]}>(async ({input}) => {
@@ -163,7 +163,7 @@ const dmMachine = setup({
                 input: ({ context }) => ({
                   utt: context.lastUserUtterance!,
                   predicates: Object.keys(context.is.domain.predicates),
-                  lastSysMove: context.lastSysMove!
+                  lastSysMoves: context.lastSysMoves!
                 }),
                 onDone: [
                 {
@@ -335,7 +335,7 @@ const dmMachine = setup({
                         moves: event.value,
                       },
                     })),
-                    assign(({event}) => ({lastSysMove: event.value[0]}))
+                    assign(({event}) => ({lastSysMoves: event.value}))
                   ]
                 },
               },
@@ -345,12 +345,12 @@ const dmMachine = setup({
               on: {
                 SPEAK_COMPLETE: [
                   { 
-                    guard: ({ context }) =>
-                      context.lastSysMove?.type === "answer" &&
-                      typeof context.lastSysMove.content === "object" &&
-                      context.lastSysMove.content !== null &&
-                      "predicate" in context.lastSysMove.content &&
-                      context.lastSysMove.content.predicate === "observed_bird",
+                    guard: ({ context }) => context.lastSysMoves!.some(move =>
+                      move.type === "answer" &&
+                      typeof move.content === "object" &&
+                      move.content !== null &&
+                      "predicate" in move.content &&
+                      move.content.predicate === "observed_bird"),
                     target: "Done",
                     actions: [
                       "stopSpeechState",

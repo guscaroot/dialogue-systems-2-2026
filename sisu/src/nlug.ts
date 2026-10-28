@@ -12,38 +12,8 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true,
 });
 
-
-interface NLUMapping {
-  [index: string]: Move[];
-}
 type NLGMapping = [Move, string][];
 
-const nluMapping: NLUMapping = { // use only lower case here
-  "what is this bird?": [
-    {
-      type: "ask",
-      content: WHQ("observed_bird"),
-    },
-  ],
-  "*noinput*": [
-    {
-      type: "noInput",
-      content: null,
-    },
-  ],
-  "sweden": [
-    {
-      type: "answer",
-      content: "sweden",
-    },
-  ],
-  "i see a small bird with a blue crown": [
-    {
-      type: "answer",
-      content: "blue crown",
-    },
-  ],
-};
 const nlgMapping: NLGMapping = [
   [{ type: "greet", content: null }, "Hello and welcome to BirdyTalk! How can I help you?"],
   [
@@ -106,10 +76,6 @@ export function nlg(moves: Move[]): string {
   const utterance = moves.map(generateMove).join(" ");
   console.log("generated utterance:", utterance);
   return utterance;
-}
-
-export function nlu(utterance: string): Move[] {
-  return nluMapping[utterance.toLowerCase()] || [];
 }
 
 export async function getBird(
@@ -184,7 +150,7 @@ export async function getBird(
     query: embedding,
     filter: filter,
     with_payload: true,
-    limit: 1
+    limit: 10
   })).points;
   if (points.length === 0) {
     console.log("[NLU] No bird retrieved")
@@ -210,14 +176,17 @@ export async function getBird(
 }
 
 
-export async function nluLLM(utterance: string, predicates: string[], lastSysMove: Move) : Promise<Move[]> {
+export async function nluLLM(utterance: string, predicates: string[], lastSysMoves: Move[]) : Promise<Move[]> {
+  const lastSysMove: Move = lastSysMoves.filter(move => 
+    move.type !== "noUnderstandingFeedback"
+    && move.type !== "noInputFeedback")[0] ?? null
   const instruction: string =
   `
   You are an NLU assistant.
   Determine whether the user utterance is an appropriate response to the system move.
   Then map the user utterance into a JSON array of move objects.
 
-  - If the system move is 'greet' and the user expresses an intention to identify a bird, return an 'ask' move with the predicate 'observed_bird'. Otherwise, return [].
+  - If the system move is 'greet' or 'null' and the user expresses an intention to identify a bird, return an 'ask' move with the predicate 'observed_bird'. Otherwise, return [].
   - Never generate an 'ask' move with any other predicate.
   - If the system move is 'ask', return an 'answer' move using the same predicate as in the system move, but only if the user provides a relevant answer. Otherwise, return [].
   - If the user utterance is not a reasonably interpretable answer, return [].
@@ -749,6 +718,20 @@ export async function nluLLM(utterance: string, predicates: string[], lastSysMov
   User: "where are you?"
   Output: []
 
+  Example O - a valid ask move
+  System: "null"
+  User: "what is this bird?"
+  Output:
+  [
+    {
+      "type": "ask",
+      "content": {
+        "type": "whq",
+        "predicate": "observed_bird"
+      }
+    }
+  ]
+
   System move: ${JSON.stringify(lastSysMove)}
   User utterance: `
 
@@ -779,6 +762,13 @@ export async function nluLLM(utterance: string, predicates: string[], lastSysMov
     return [];
   }
   const inferredMoves = parsed
+  // Only an ask move is allowed after NoinputFeedback or noUnderstandingFeedback move following a greeting
+  if (!lastSysMove && !inferredMoves.some(move => move.type === "ask")) {
+    return []
+  }
+  if (!lastSysMove && inferredMoves.some(move => move.type === "ask")) {
+    return inferredMoves
+  }
   // A greeting requires an ask move
   if (lastSysMove.type === "greet"
     && !inferredMoves.some(move => move.type === "ask")) {
