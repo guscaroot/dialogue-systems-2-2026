@@ -198,6 +198,7 @@ export async function getBird(
     //size: 'M',
     conservationStatus: item.payload!.conservationStatus as conservationStatusCat,
     description: item.payload!.description as string,
+    wikiImageURL: item.payload!.wikiImageURL as string
   }));
   const birds_scores = points.map((item) => ({
     bird: item.payload!.commonName,

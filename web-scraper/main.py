@@ -153,10 +153,26 @@ def get_species_id(soup: bs4.BeautifulSoup) -> int:
 
     return int(match.group(1))
 
+def get_image_url(soup: bs4.BeautifulSoup) -> str:
+    """ Extract the image URL """
+    scripts = soup.select('script[type="application/ld+json"]')
+    for script in scripts:
+        if not script.string and not script.get_text(strip=True):
+            continue
+        try:
+            data = json.loads(script.string or script.get_text())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, dict):
+            image_url = data["image"]
+            if isinstance(image_url, str) and image_url.strip():
+                return image_url
+    raise ValueError("Image URL not found")
+
 
 class Bird:
 
-    def __init__(self, species_id, common_name, scientific_name, conservation_status, description, habitats, countries, regions):
+    def __init__(self, species_id, common_name, scientific_name, conservation_status, description, habitats, countries, regions, wiki_image_url):
         self.species_id: int = species_id
         self.common_name: str = common_name
         self.scientific_name: str = scientific_name
@@ -165,6 +181,7 @@ class Bird:
         self.habitats: list = habitats
         self.countries: list = countries
         self.regions: list = regions
+        self.wiki_image_url: str = wiki_image_url
 
     def __str__(self) -> str:
         return (
@@ -173,6 +190,7 @@ class Bird:
             f"Scientific name: {self.scientific_name}\n"
             f"Conservation status: {self.conservation_status}\n"
             f"Description: {self.description}\n"
+            f"Wikipedia image URL: '{self.wiki_image_url}'"
         )
 
     def serialize(self) -> dict:
@@ -185,7 +203,8 @@ class Bird:
             "description": self.description,
             "habitats": self.habitats,
             "countries": self.countries,
-            "regions": self.regions
+            "regions": self.regions,
+            "wiki_image_url": self.wiki_image_url
         }
 
 
@@ -230,8 +249,9 @@ def main():
         scientific_name = get_scientific_name(wiki_soup)
         conservation_status = get_conservation_status(wiki_soup)
         description = get_description(wiki_soup)
+        wiki_image_url = get_image_url(wiki_soup)
 
-        bird = Bird(species_id, common_name, scientific_name, conservation_status, description, habitats, countries, regions)
+        bird = Bird(species_id, common_name, scientific_name, conservation_status, description, habitats, countries, regions, wiki_image_url)
         birds.append(bird)
         regions.extend(bird.regions)
         habitats.extend(bird.habitats)

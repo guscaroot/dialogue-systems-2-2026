@@ -686,4 +686,5 @@ export type bird = {
   //size: sizeCat,
   conservationStatus: conservationStatusCat,
   description: string,
+  wikiImageURL: string
 };

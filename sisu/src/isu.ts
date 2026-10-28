@@ -6,7 +6,7 @@ import { DMContext, DMEvent, NextMovesEvent, Move, Question, Proposition, bird }
 import { getBird, nlg, nlu, nluLLM, getBirdQuestion } from "./nlug"; // nluQdrant
 import { dme } from "./dme";
 import { initialIS } from "./is";
-import { displayBirdImage } from "./birds-data";
+import { displayBirdImage } from "./birds-image";
 
 const {inspect} = createBrowserInspector();
 
