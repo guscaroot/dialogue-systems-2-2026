@@ -172,7 +172,7 @@ export async function getBird(
   if (points.length === 0) {
     console.log("[BIRD RETRIEVAL] No bird retrieved")
   };
-  const retrieved_birds : bird[] = points.map((item) => ({
+  let retrieved_birds : bird[] = points.map((item) => ({
     id: item.id as number,
     commonName: item.payload!.commonName as string,
     scientificName: item.payload!.scientificName as string,
@@ -187,6 +187,12 @@ export async function getBird(
     bird: item.payload!.commonName,
     score: item.score
   }))
+  if (birds_scores[0].score >= 0.8) {
+    const retrieved_bird = [retrieved_birds[0]]
+    console.log("[BIRD RETRIEVAL] Getting Bird result:")
+    console.table(birds_scores)
+    return retrieved_bird
+  }
   console.log("[BIRD RETRIEVAL] Getting Bird result:")
   console.table(birds_scores)
   return retrieved_birds

@@ -314,15 +314,6 @@ export const rules: Rules = {
       ["findout", "raise"].includes(is.private.agenda[0].type)
     ) {
       const q = is.private.agenda[0].content as Question;
-      console.log("[select_ask] Selected question:", q);
-
-    const askMove: Move = {
-      type: "ask",
-      content: q,
-    };
-console.log("[select_ask] Agenda:", is.private.agenda);
-console.log("[select_ask] Plan:", is.private.plan);
-    console.log("[select_ask] Generated ask move:", askMove);
       if (is.private.plan[0] && is.private.plan[0].type === "raise") {
         newIS = {
           ...is,
@@ -398,8 +389,8 @@ console.log("[select_ask] Plan:", is.private.plan);
     const latestMove = tis.latest_moves;
     if (Array.isArray(latestMove) && latestMove.length === 0)  { 
       const noUnderstandingFeedbackMove: Move = { type: "noUnderstandingFeedback", content: null };
-      const qud = tis.is.shared.qud[0]; console.log("!!QUD :", qud)
-      let moves: Move[] = [noUnderstandingFeedbackMove]; console.log("!!MOVES :", moves)
+      const qud = tis.is.shared.qud[0]; 
+      let moves: Move[] = [noUnderstandingFeedbackMove];
       if (qud) {
         moves.push({ type: "ask", content: qud });
       }
@@ -415,8 +406,8 @@ console.log("[select_ask] Plan:", is.private.plan);
     const latestMove = tis.latest_moves?.[0];
     if (latestMove?.type === "noInput")  { 
       const noInputFeedbackMove: Move = { type: "noInputFeedback", content: null };
-      const qud = tis.is.shared.qud[0]; console.log("!!QUD :", qud)
-      let moves: Move[] = [noInputFeedbackMove]; console.log("!!MOVES :", moves)
+      const qud = tis.is.shared.qud[0]; 
+      let moves: Move[] = [noInputFeedbackMove];
       if (qud) {
         moves.push({ type: "ask", content: qud });
       }
