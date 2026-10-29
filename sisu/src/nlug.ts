@@ -480,7 +480,7 @@ export async function nluLLM(utterance: string, predicates: string[], lastSysMov
     - "desert" // to use for hot, temperate, and cold deserts, including inland deserts with predominantly bare sand or gravel
     - "marine and coastal" // to use for seashores, beaches, estuaries, tidal flats, coastal waters, coral reefs, seagrass beds, ocean, deep-sea, coastal dunes and cliffs and other marine environments
     - "agricultural land" // to use for farmland, cultivated fields, arable land, cropland, agricultural pastures, orchards, vineyards, agricultural landscapes and similar
-    - "urban and suburban" // to use for gardens, parks, towns, cities, residential areas, suburbs, villages and similar
+    - "urban and suburban" // to use when the user explicitly describes human-developed environments, such as gardens, parks, town centres, residential areas, suburbs, villages, or other built-up areas. A city or town name alone does not qualify; the user must provide explicit information about the environment
 
   Allowed JSON structures for move objects are exactly:
     - For an ask move:
@@ -625,14 +625,14 @@ export async function nluLLM(utterance: string, predicates: string[], lastSysMov
         "predicate": "bird_location"
       }
   }
-  User: "i'm in a park in gothenburg"
+  User: "i'm in my garden in oslo"
   Output:
   [
     {
       "type": "answer",
       "content": {
         "predicate": "bird_location",
-        "argument":"sweden"
+        "argument":"norway"
       }
     },
     {
@@ -640,6 +640,26 @@ export async function nluLLM(utterance: string, predicates: string[], lastSysMov
       "content": {
         "predicate": "bird_environment",
         "argument":"urban and suburban"
+      }
+    }
+  ]
+
+  Example H2 - a city does not imply an environment
+  System: {
+    "type": "ask",
+    "content": {
+      "type": "whq",
+      "predicate": "bird_location"
+    }
+  }
+  User: "i'm in gothenburg"
+  Output:
+  [
+    {
+      "type": "answer",
+      "content": {
+        "predicate": "bird_location",
+        "argument": "sweden"
       }
     }
   ]
