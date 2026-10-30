@@ -877,7 +877,7 @@ export async function getBirdQuestion(birds: bird[], totalDescription: Propositi
     (bird) => `- ${bird.commonName}: ${bird.description}`)
   .join('\n');
   const descriptionsList: string = totalDescription
-  .map(item => `- ${item.predicate}: ${item.argument}`)
+  .map(item => `- "${item.predicate}": "${item.argument}"`)
   .join("\n")
   const prompt:string = `
   You are a bird identification assistant.
@@ -888,14 +888,14 @@ export async function getBirdQuestion(birds: bird[], totalDescription: Propositi
   The following information has already been given by the user. Each bullet point represents a predicate-argument pair, where the predicate identifies the type of information and the argument is the corresponding value:
   ${descriptionsList}
 
-  Your task is to formulate the SINGLE MOST DISCRIMINATING question that will help distinguish between these candidates.
+  Your task is to formulate the MOST DISCRIMINATING question that will help distinguish between these candidates and that the user has NOT ANSWERED YET.
 
   Instructions:
   Compare the candidate species' characteristics, based only on the provided descriptions.
   Consider the information already given by the user.
   Identify a visible characteristic that is not already given and best separates the candidates (such as colour, size, markings, or shape).
-  NEVER use an already used predicate.
-  Treat predicates as identifiers of characteristics. For example, if "bird_colour" has already been provided, do not ask about colour again, even if the question uses different wording.
+  NEVER use an already used predicate or generate a question for an established characteristic.
+  Treat predicates as identifiers of characteristics. For example, if "bird_overall_colour" has already been provided, do not ask about overall colour again, even with a different wording.
   Ask about easily observable features such as plumage, head colour, beak shape, body size, legs length or similar.
   Avoid questions about characteristics shared by all candidates.
   Make the question short, clear, and easy for a non-expert to answer.
@@ -910,8 +910,65 @@ export async function getBirdQuestion(birds: bird[], totalDescription: Propositi
     "text": string
   }
   where "type" has only "whq" as allowed value
-  where predicate is inferred and represents the question content, for instance "bird_colour", "bird_crown", "bird_beak", "bird_legs", "bird_shape", "bird_beak_colour".
+  where predicate is inferred and represents the question content, for instance "bird_overall_colour", "bird_overall_shape", "bird_crown_colour", "bird_crown_shape", "bird_beak_colour", "bird_beak_shape", "bird_legs_colour", "bird_legs_length", "bird_wings_pattern", "bird_tail_shape", "bird_tail_length".
   and where string is the question itself.
+
+  Examples:
+  Example A: 
+  Already given information:
+  - "bird_description": "it's a small bird with a blue crown"
+  Invalid question output:
+    {
+      "type": "whq",
+      "predicate": "bird_crown_colour",
+      "text": "What colour is the bird's crown?"
+    }
+  Reason: The crown colour has already been described even if the predicate is available.
+  Valid question output (provided it is the most discriminating):
+  {
+    "type": "whq",
+    "predicate": "bird_beak_shape",
+    "text": "What shape is the bird's beak?"
+  }
+  Reason: The beak shape has not been described, so this could provide new information.
+
+  Example B: 
+  Already given information:
+  - "bird_description": "I see a big bird with long legs"
+  - "bird_overall_colour": "The bird is white and grey"
+  - "bird_additional_information" : "its legs are brown"
+  Invalid question output:
+    {
+      "type": "whq",
+      "predicate": "bird_legs_colour",
+      "text": "What colour are the bird's legs?"
+    }
+  Reason: The legs colour has already been described even if the predicate is available.
+  Valid question output (provided it is the most discriminating):
+  {
+    "type": "whq",
+    "predicate": "bird_eyes_colour",
+    "text": "What colour are the bird's eyes?"
+  }
+  Reason: The eyes colour has not been described, so this could provide new information.
+
+  Example C: 
+  Already given information:
+  - "bird_description": "It looks like a woodpecker but bigger"
+  - "bird_back_colour": "The back is green"
+  Invalid question output:
+    {
+      "type": "whq",
+      "predicate": "bird_back_colour",
+      "text": "What colour is the bird's back?"
+    }
+  Reason: The back colour has already been described and the predicate is used.
+  Valid question output (provided it is the most discriminating):
+    "type": "whq",
+    "predicate": "bird_nape_colour",
+    "text": "What colour is the bird's nape?"
+  }
+  Reason: The nape colour has not been described, so this could provide new information.
 `;
 
   console.log("[MORE INFO NEEDED] Getting bird question");
@@ -920,10 +977,11 @@ export async function getBirdQuestion(birds: bird[], totalDescription: Propositi
         messages:[{ role:  "user" , content: prompt }],
         model:'llama3.1:latest',
         response_format: { type: "json_object" },
-        temperature: 0.2 // for more predictable / consistent responses
+        temperature: 0 // for more predictable / consistent responses
      })
   .then((result) => result.choices[0].message.content)
   const usedPredicates = totalDescription.map(item => item.predicate)
+  console.log(totalDescription)
   if (!response) {
     console.log("[MORE INFO NEEDED] Empty model response");
     return getFallBackQuestion(usedPredicates);
